@@ -19,7 +19,7 @@ class Model(nn.Module):
                                                  , num_encoder_layers=n_layers
                                                  , num_decoder_layers=n_layers
                                                  )
-        self.fc_out = nn.Linear(d_model, c_out)
+        self.fc_out = nn.Linear(d_model, c_out, bias=True)
 
     def forward(self, x):
         # Define the forward pass
