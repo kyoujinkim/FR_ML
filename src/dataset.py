@@ -15,11 +15,11 @@ class TS_dataset(Dataset):
             self.label_len = size[1]
             self.pred_len = size[2]
 
-        assert flag in ['train', 'test', 'val']
+        assert flag in ['train', 'test', 'valid']
         type_map = {
             'train': 0,
             'test': 1,
-            'val': 2
+            'valid': 2
         }
         self.type = type_map[flag]
 
