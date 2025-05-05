@@ -3,17 +3,81 @@ Regime prediction with factor data
 classify the regime, and train model with each regime's data
 it would be beneficial to merge those process into one model, not in seperate model.
 '''
+import argparse
+import datetime
 
 import pandas as pd
-from src.dataset import DataLoader
+import torch
+from torch import nn
+from torch.utils.data import DataLoader
+from src.models.transformers import Model
 
-# build data
-r = pd.read_parquet('./src/cache/us/return.parquet')
-p = (r+1).cumprod()
+from src.dataset import TS_dataset
 
-rft = pd.read_csv('./src/cache/us/bt_plot.csv', index_col=0, parse_dates=True)
-rft.columns = ['inv','mom','prf','smb','hml']
+def train(model, opt, loss_fn, dataloader):
+    model.train()
+    total_loss = 0
+    losses = []
+    print(f"Training...{datetime.datetime.now()}")
+    for i, (x, y) in enumerate(dataloader):
+        x = x.to(device)
+        y = y.to(device)
 
-dl = DataLoader(p, flag='train')
+        seq_len = y.size(1)
+        tgt_mask = model.generate_square_subsequent_mask(seq_len).to(device)
 
-c = 1
+        pred = model(x, y, tgt_mask)
+        loss = loss_fn(pred, y)
+        loss.backward()
+
+        if i % 100 == 0:
+            print(f"Batch {i}, Loss: {loss.item():.4f}")
+            opt.step()
+            opt.zero_grad()
+
+        losses.append(loss.detach().item())
+        total_loss += loss.detach().item()
+
+    return total_loss / len(dataloader)
+
+def fit(batch_size=32):
+    for epoch in range(batch_size):
+        loss = train(model, opt, loss_fn, dl)
+        print(f"Epoch {epoch+1}, Loss: {loss:.4f}")
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description='Transformer Model for Time Series')
+    parser.add_argument('--rpath', type=str, default='./src/cache/us/return.parquet', help="return file path")
+    parser.add_argument('--fpath', type=str, default='./src/cache/us/return_factor.parquet', help="factor file path")
+    parser.add_argument('--flag', type=str, default="train", help="train or valid or test")
+    parser.add_argument('--d_model', type=int, default=64, help="dimension of model")
+    parser.add_argument('--n_heads', type=int, default=4, help="head of MHA")
+    parser.add_argument('--n_layers', type=int, default=2, help="Layer of Transformer")
+    parser.add_argument('--c_in', type=int, default=1, help="input channel")
+    parser.add_argument('--c_out', type=int, default=1, help="output channel")
+    parser.add_argument('--batch_size', type=int, default=32, help="batch size")
+    parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
+    parser.add_argument('--savepath', type=str, default='./src/cache/us/model.pth', help="model save path")
+    args = parser.parse_args()
+
+    # build data
+    r = pd.read_parquet(args.rpath)
+    p = (r + 1).cumprod()
+
+    rft = pd.read_parquet(args.fpath)
+    rft.columns = ['inv', 'mom', 'prf', 'smb', 'hml']
+
+    ds = TS_dataset(p, flag=args.flag)
+    dl = DataLoader(ds, batch_size=args.batch_size, shuffle=True)
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = Model(d_model=args.d_model, n_heads=args.n_heads, n_layers=args.n_layers, c_in=args.c_in, c_out=args.c_out).to(device)
+    opt = torch.optim.SGD(model.parameters(), lr=args.lr)
+    loss_fn = nn.L1Loss()
+
+    fit()
+    # save model
+    torch.save(model.state_dict(), args.savepath)
+    # load model
+    #model.load_state_dict(torch.load('./src/cache/us/model.pth'))

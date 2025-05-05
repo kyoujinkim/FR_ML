@@ -1,9 +1,10 @@
 import pandas as pd
+import torch
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import Dataset
 
 
-class DataLoader(Dataset):
+class TS_dataset(Dataset):
     def __init__(self, price, fct=None, size=None, flag='train', train_pct=None):
         if size is None:
             self.seq_len = 52
@@ -48,15 +49,15 @@ class DataLoader(Dataset):
             for j in range(0, len(d), self.seq_len):
                 if j + self.seq_len + self.pred_len > len(d):
                     break
-                x = d[j : j+self.seq_len] / d[j]
-                y = d[j+self.seq_len-self.label_len : j+self.seq_len+self.pred_len] / d[j]
-                data.append([x, y])
+                x = d[j : j+self.seq_len] / d[j+self.seq_len]
+                y = d[j+self.seq_len : j+self.seq_len+self.pred_len] / d[j+self.seq_len]
+                data.append([x.reshape((self.seq_len, -1)), y.reshape((self.pred_len, -1))])
 
         self.data = data
 
     def __getitem__(self, index):
-        x = self.data[index][0]
-        y = self.data[index][1]
+        x = torch.FloatTensor(self.data[index][0])
+        y = torch.FloatTensor(self.data[index][1])
 
         return x, y
 
