@@ -78,7 +78,7 @@ if __name__ == "__main__":
     parser.add_argument('--d_model', type=int, default=64, help="dimension of model")
     parser.add_argument('--n_heads', type=int, default=4, help="head of MHA")
     parser.add_argument('--n_layers', type=int, default=2, help="Layer of Transformer")
-    parser.add_argument('--c_in', type=int, default=1, help="input channel")
+    parser.add_argument('--use_factor', type=bool, default=False, help="use or not use factor data")
     parser.add_argument('--c_out', type=int, default=1, help="output channel")
     parser.add_argument('--batch_size', type=int, default=32, help="batch size")
     parser.add_argument('--epochs', type=int, default=32, help="batch size")
@@ -91,18 +91,23 @@ if __name__ == "__main__":
     r = pd.read_parquet(args.rpath)
     p = (r + 1).cumprod()
 
-    rft = pd.read_parquet(args.fpath)
-    rft.columns = ['inv', 'mom', 'prf', 'smb', 'hml']
+    if args.use_factor:
+        rft = pd.read_parquet(args.fpath)
+        rft.columns = ['inv', 'mom', 'prf', 'smb', 'hml']
+        c_in = 1 + 5
+    else:
+        rft = None
+        c_in = 1
 
-    ds = TS_dataset(p, flag=args.flag)
+    ds = TS_dataset(p, fct=rft, flag=args.flag)
     dl = DataLoader(ds, batch_size=args.batch_size, shuffle=True)
-    ds_val = TS_dataset(p, flag='valid')
+    ds_val = TS_dataset(p, fct=rft, flag='valid')
     dl_val = DataLoader(ds_val, batch_size=args.batch_size, shuffle=False)
-    ds_test = TS_dataset(p, flag='test')
+    ds_test = TS_dataset(p, fct=rft, flag='test')
     dl_test = DataLoader(ds_test, batch_size=args.batch_size, shuffle=False)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = Model(d_model=args.d_model, n_heads=args.n_heads, n_layers=args.n_layers, c_in=args.c_in, c_out=args.c_out).to(device)
+    model = Model(d_model=args.d_model, n_heads=args.n_heads, n_layers=args.n_layers, c_in=c_in, c_out=args.c_out).to(device)
     opt = torch.optim.SGD(model.parameters(), lr=args.lr)
     loss_fn = nn.L1Loss()
 

@@ -38,6 +38,8 @@ class TS_dataset(Dataset):
         data = []
         for i in range(len(price.columns)):
             p = price.iloc[:, i].dropna()
+            if len(p) < self.seq_len + self.pred_len:
+                continue
             if fct is not None:
                 f = fct.loc[:p.index[-1]].dropna()
                 d = pd.concat([p, f], axis=1).dropna().values
