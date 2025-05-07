@@ -52,7 +52,7 @@ class TS_dataset(Dataset):
                 if j + self.seq_len + self.pred_len > len(d):
                     break
                 x = d[j : j+self.seq_len] / d[j+self.seq_len-1]
-                y = d[j+self.seq_len : j+self.seq_len+self.pred_len, 0] / d[j+self.seq_len-1, 0]
+                y = d[j+self.seq_len : j+self.seq_len+self.pred_len] / d[j+self.seq_len-1]
                 data.append([x.reshape((self.seq_len, -1)), y.reshape((self.pred_len, -1))])
 
         self.data = data

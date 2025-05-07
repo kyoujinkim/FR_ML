@@ -27,6 +27,8 @@ def train(model, opt, loss_fn, dataloader):
         tgt_mask = model.generate_square_subsequent_mask(seq_len).to(device)
 
         pred = model(x, y, tgt_mask)
+        if pred.shape != y.shape:
+            y = y[:,:,0].reshape(list(y.shape[:2]) + [1])
         loss = loss_fn(pred, y)
         loss.backward()
 
@@ -57,6 +59,8 @@ def validation(model, loss_fn, dataloader):
 
             pred = model(x, y_input, tgt_mask)
 
+            if pred.shape != y_expected.shape:
+                y_expected = y_expected[:, :, 0].reshape(list(y_expected.shape[:2]) + [1])
             loss = loss_fn(pred, y_expected)
             total_loss += loss.detach().item()
 
@@ -78,7 +82,7 @@ if __name__ == "__main__":
     parser.add_argument('--d_model', type=int, default=64, help="dimension of model")
     parser.add_argument('--n_heads', type=int, default=4, help="head of MHA")
     parser.add_argument('--n_layers', type=int, default=2, help="Layer of Transformer")
-    parser.add_argument('--use_factor', type=bool, default=False, help="use or not use factor data")
+    parser.add_argument('--use_factor', type=bool, default=True, help="use or not use factor data")
     parser.add_argument('--c_out', type=int, default=1, help="output channel")
     parser.add_argument('--batch_size', type=int, default=32, help="batch size")
     parser.add_argument('--epochs', type=int, default=32, help="batch size")
