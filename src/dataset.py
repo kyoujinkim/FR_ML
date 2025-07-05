@@ -1,6 +1,7 @@
 import pandas as pd
 import torch
 from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
 from torch.utils.data import Dataset
 
 
