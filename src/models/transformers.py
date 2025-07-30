@@ -1,44 +1,124 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from layers.Transformer_EncDec import Decoder, DecoderLayer, Encoder, EncoderLayer, ConvLayer
+from layers.SelfAttention_Family import FullAttention, AttentionLayer
+from layers.Embed import DataEmbedding
 import numpy as np
-from src.layers import DataEmbedding
+
 
 class Model(nn.Module):
-    def __init__(self, d_model, n_heads, n_layers, c_in, c_out):
+    """
+    Vanilla Transformer
+    with O(L^2) complexity
+    Paper link: https://proceedings.neurips.cc/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf
+    """
+
+    def __init__(self, configs):
         super(Model, self).__init__()
-        self.d_model = d_model
-        self.n_heads = n_heads
-        self.n_layers = n_layers
-        self.c_in = c_in
-        self.c_out = c_out
+        self.task_name = configs.task_name
+        self.pred_len = configs.pred_len
+        # Embedding
+        self.enc_embedding = DataEmbedding(configs.enc_in, configs.d_model, configs.embed, configs.freq,
+                                           configs.dropout)
+        # Encoder
+        self.encoder = Encoder(
+            [
+                EncoderLayer(
+                    AttentionLayer(
+                        FullAttention(False, configs.factor, attention_dropout=configs.dropout,
+                                      output_attention=False), configs.d_model, configs.n_heads),
+                    configs.d_model,
+                    configs.d_ff,
+                    dropout=configs.dropout,
+                    activation=configs.activation
+                ) for l in range(configs.e_layers)
+            ],
+            norm_layer=torch.nn.LayerNorm(configs.d_model)
+        )
+        # Decoder
+        if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
+            self.dec_embedding = DataEmbedding(configs.dec_in, configs.d_model, configs.embed, configs.freq,
+                                               configs.dropout)
+            self.decoder = Decoder(
+                [
+                    DecoderLayer(
+                        AttentionLayer(
+                            FullAttention(True, configs.factor, attention_dropout=configs.dropout,
+                                          output_attention=False),
+                            configs.d_model, configs.n_heads),
+                        AttentionLayer(
+                            FullAttention(False, configs.factor, attention_dropout=configs.dropout,
+                                          output_attention=False),
+                            configs.d_model, configs.n_heads),
+                        configs.d_model,
+                        configs.d_ff,
+                        dropout=configs.dropout,
+                        activation=configs.activation,
+                    )
+                    for l in range(configs.d_layers)
+                ],
+                norm_layer=torch.nn.LayerNorm(configs.d_model),
+                projection=nn.Linear(configs.d_model, configs.c_out, bias=True)
+            )
+        if self.task_name == 'imputation':
+            self.projection = nn.Linear(configs.d_model, configs.c_out, bias=True)
+        if self.task_name == 'anomaly_detection':
+            self.projection = nn.Linear(configs.d_model, configs.c_out, bias=True)
+        if self.task_name == 'classification':
+            self.act = F.gelu
+            self.dropout = nn.Dropout(configs.dropout)
+            self.projection = nn.Linear(configs.d_model * configs.seq_len, configs.num_class)
 
-        # Define the model layers here
-        self.embedding = DataEmbedding(c_in, d_model)
-        self.transformer_blocks = nn.Transformer(d_model=d_model
-                                                 , nhead=n_heads
-                                                 , num_encoder_layers=n_layers
-                                                 , num_decoder_layers=n_layers
-                                                 , batch_first=True
-                                                 )
-        self.fc_out = nn.Linear(d_model, c_out, bias=True)
+    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
+        # Embedding
+        enc_out = self.enc_embedding(x_enc, x_mark_enc)
+        enc_out, attns = self.encoder(enc_out, attn_mask=None)
 
-    def forward(self, src, tgt, tgt_mask=None, src_pad_mask=None, tgt_pad_mask=None):
-        # Define the forward pass
-        src = self.embedding(src) * np.sqrt(self.d_model)
-        tgt = self.embedding(tgt) * np.sqrt(self.d_model)
+        dec_out = self.dec_embedding(x_dec, x_mark_dec)
+        dec_out = self.decoder(dec_out, enc_out, x_mask=None, cross_mask=None)
+        return dec_out
 
-        x = self.transformer_blocks(src, tgt, tgt_mask=tgt_mask, src_key_padding_mask=src_pad_mask, tgt_key_padding_mask=tgt_pad_mask)
-        x = self.fc_out(x)
-        return x
+    def imputation(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask):
+        # Embedding
+        enc_out = self.enc_embedding(x_enc, x_mark_enc)
+        enc_out, attns = self.encoder(enc_out, attn_mask=None)
 
-    def generate_square_subsequent_mask(self, sz):
-        """Generates a square subsequent mask for the transformer model."""
-        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
-        return mask
+        dec_out = self.projection(enc_out)
+        return dec_out
 
-    def generate_padding_mask(self, seq):
-        """Generates a padding mask for the transformer model."""
-        seq = seq.permute(0, 2, 1)
-        mask = (seq == 0).unsqueeze(1).unsqueeze(2)
-        return mask
+    def anomaly_detection(self, x_enc):
+        # Embedding
+        enc_out = self.enc_embedding(x_enc, None)
+        enc_out, attns = self.encoder(enc_out, attn_mask=None)
+
+        dec_out = self.projection(enc_out)
+        return dec_out
+
+    def classification(self, x_enc, x_mark_enc):
+        # Embedding
+        enc_out = self.enc_embedding(x_enc, None)
+        enc_out, attns = self.encoder(enc_out, attn_mask=None)
+
+        # Output
+        output = self.act(enc_out)  # the output transformer encoder/decoder embeddings don't include non-linearity
+        output = self.dropout(output)
+        output = output * x_mark_enc.unsqueeze(-1)  # zero-out padding embeddings
+        output = output.reshape(output.shape[0], -1)  # (batch_size, seq_length * d_model)
+        output = self.projection(output)  # (batch_size, num_classes)
+        return output
+
+    def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
+        if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
+            dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
+            return dec_out[:, -self.pred_len:, :]  # [B, L, D]
+        if self.task_name == 'imputation':
+            dec_out = self.imputation(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
+            return dec_out  # [B, L, D]
+        if self.task_name == 'anomaly_detection':
+            dec_out = self.anomaly_detection(x_enc)
+            return dec_out  # [B, L, D]
+        if self.task_name == 'classification':
+            dec_out = self.classification(x_enc, x_mark_enc)
+            return dec_out  # [B, N]
+        return None
