@@ -4,6 +4,7 @@ classify the regime, and train model with each regime's data
 it would be beneficial to merge those process into one model, not in seperate model.
 '''
 import argparse
+import configparser
 import datetime
 
 import pandas as pd
@@ -73,54 +74,68 @@ def fit(dl, dl_val, epochs=32):
         validation_loss = validation(model, loss_fn, dl_val)
         print(f"Epoch {epoch+1}, Validation Loss: {validation_loss:.4f}")
 
+def load_factors(path, factors, format='csv'):
+    fct = []
+    for f in factors:
+        if format=='csv':
+            fct.append(pd.read_csv(f'./{path}/{f}.csv', index_col=0, parse_dates=True))
+        elif format=='parquet':
+            fct.append(pd.read_parquet(f'{path}/{f}.parquet'))
+        else:
+            raise ValueError(f"Unsupported file format: {f}")
+    return fct
+
+class read_config():
+    def __init__(self, path):
+        config = configparser.ConfigParser()
+        config.read(path)
+        items = config.items('VARS')
+        for item in items:
+            name = item[0]
+            var = item[1]
+            # convert to appropriate type
+            if var.isdigit():
+                var = int(var)
+            elif var.replace('.', '', 1).isdigit():
+                var = float(var)
+            elif var.lower() in ['true', 'false']:
+                var = var.lower() == 'true'
+            else:
+                var = var
+            setattr(self, name, var)
+
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Transformer Model for Time Series')
-    parser.add_argument('--rpath', type=str, default='./src/cache/us/return.parquet', help="return file path")
-    parser.add_argument('--fpath', type=str, default='./src/cache/us/return_factor.parquet', help="factor file path")
-    parser.add_argument('--flag', type=str, default="train", help="train or valid or test")
-    parser.add_argument('--d_model', type=int, default=64, help="dimension of model")
-    parser.add_argument('--n_heads', type=int, default=4, help="head of MHA")
-    parser.add_argument('--n_layers', type=int, default=2, help="Layer of Transformer")
-    parser.add_argument('--use_factor', type=bool, default=True, help="use or not use factor data")
-    parser.add_argument('--c_out', type=int, default=1, help="output channel")
-    parser.add_argument('--batch_size', type=int, default=32, help="batch size")
-    parser.add_argument('--epochs', type=int, default=32, help="batch size")
-    parser.add_argument('--lr', type=float, default=0.001, help="learning rate")
-    parser.add_argument('--savepath', type=str, default='./src/cache/us/model.pth', help="model save path")
-    parser.add_argument('--loadpath', type=str, default=None, help="model load path")
-    args = parser.parse_args()
+    config = read_config('./config.ini')
 
+    country = 'europe'
+    flag = 'train'
+    batch_size = config.batch_size
     # build data
-    r = pd.read_parquet(args.rpath)
+    r = pd.read_parquet(f'./data/{country}/returns.parquet')
     p = (r + 1).cumprod()
 
-    if args.use_factor:
-        rft = pd.read_parquet(args.fpath)
-        rft.columns = ['inv', 'mom', 'prf', 'smb', 'hml']
-        c_in = 1 + 5
-    else:
-        rft = None
-        c_in = 1
+    fct = load_factors('./data/europe', ['value', 'size', 'momentum', 'investment', 'profitability'], 'parquet')
 
-    ds = TS_dataset(p, fct=rft, flag=args.flag)
-    dl = DataLoader(ds, batch_size=args.batch_size, shuffle=True)
-    ds_val = TS_dataset(p, fct=rft, flag='valid')
-    dl_val = DataLoader(ds_val, batch_size=args.batch_size, shuffle=False)
-    ds_test = TS_dataset(p, fct=rft, flag='test')
-    dl_test = DataLoader(ds_test, batch_size=args.batch_size, shuffle=False)
+    ds = TS_dataset(p, fct=fct, flag='train')
+    dl = DataLoader(ds, batch_size=batch_size, shuffle=True)
+    ds_val = TS_dataset(p, fct=fct, flag='valid')
+    dl_val = DataLoader(ds_val, batch_size=batch_size, shuffle=False)
+    ds_test = TS_dataset(p, fct=fct, flag='test')
+    dl_test = DataLoader(ds_test, batch_size=batch_size, shuffle=False)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = Model(d_model=args.d_model, n_heads=args.n_heads, n_layers=args.n_layers, c_in=c_in, c_out=args.c_out).to(device)
-    opt = torch.optim.SGD(model.parameters(), lr=args.lr)
+
+    model = Model(config).to(device)
+    opt = torch.optim.SGD(model.parameters(), lr=config.learning_rate)
     loss_fn = nn.L1Loss()
 
-    if args.loadpath is not None:
-        model.load_state_dict(torch.load(args.loadpath))
-        print(f"Model loaded from {args.loadpath}")
+    if config.loadpath is not None:
+        model.load_state_dict(torch.load(config.loadpath))
+        print(f"Model loaded from {config.loadpath}")
 
-    fit(dl, epochs=args.epochs, dl_val=dl_val)
+    fit(dl, epochs=config.epochs, dl_val=dl_val)
     # save model
-    torch.save(model.state_dict(), args.savepath)
+    torch.save(model.state_dict(), config.savepath)
     # load model
     #model.load_state_dict(torch.load('./src/cache/us/model.pth'))

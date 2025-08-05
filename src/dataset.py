@@ -1,12 +1,16 @@
+import warnings
+
 import pandas as pd
 import torch
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
 from torch.utils.data import Dataset
-
+from tqdm import tqdm
+# ignore RuntimeWarning
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 class TS_dataset(Dataset):
-    def __init__(self, price, fct=None, size=None, flag='train', train_pct=None):
+    def __init__(self, price, fct:list=None, size=None, flag='train', train_pct=None):
         if size is None:
             self.seq_len = 52
             self.label_len = 12
@@ -37,13 +41,21 @@ class TS_dataset(Dataset):
 
         # make data pair
         data = []
-        for i in range(len(price.columns)):
+        for i in tqdm(range(len(price.columns))):
             p = price.iloc[:, i].dropna()
             if len(p) < self.seq_len + self.pred_len:
                 continue
-            if fct is not None:
-                f = fct.loc[:p.index[-1]].dropna()
-                d = pd.concat([p, f], axis=1).dropna().values
+            if fct:
+                d = [p]
+                for f in fct:
+                    try:
+                        f_partial = f.loc[:p.index[-1], p.name].dropna()
+                    except:
+                        f_partial = pd.Series()
+                    if len(f_partial)==0:
+                        f_partial = pd.Series([0]*len(p), index=p.index, name=p.name)
+                    d.append(f_partial)
+                d = pd.concat(d, axis=1).dropna().values
             else:
                 d = p.values
             if len(d) < self.seq_len + self.pred_len:
