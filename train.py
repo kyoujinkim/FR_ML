@@ -6,6 +6,7 @@ it would be beneficial to merge those process into one model, not in seperate mo
 import argparse
 import configparser
 import datetime
+import os.path
 
 import pandas as pd
 import torch
@@ -20,9 +21,9 @@ def train(model, opt, loss_fn, dataloader):
     total_loss = 0
     losses = []
     print(f"Training...{datetime.datetime.now()}")
-    for i, (x, y) in enumerate(dataloader):
-        x = x.to(device)
-        y = y.to(device)
+    for i, (x, y, x_mark, y_mark) in enumerate(dataloader):
+        x = x.float().to(device)
+        y = y.float().to(device)
 
         seq_len = y.size(1)
         tgt_mask = model.generate_square_subsequent_mask(seq_len).to(device)
@@ -117,25 +118,30 @@ if __name__ == "__main__":
 
     fct = load_factors('./data/europe', ['value', 'size', 'momentum', 'investment', 'profitability'], 'parquet')
 
-    ds = TS_dataset(p, fct=fct, flag='train')
+    skip_col = [0, 2, 3, 4]  # columns to skip normalization
+    ds = TS_dataset(p, fct=fct, size=[config.seq_len, config.label_len, config.pred_len], flag='train', skip_col=skip_col)
     dl = DataLoader(ds, batch_size=batch_size, shuffle=True)
-    ds_val = TS_dataset(p, fct=fct, flag='valid')
+    ds_val = TS_dataset(p, fct=fct, flag='valid', skip_col=skip_col)
     dl_val = DataLoader(ds_val, batch_size=batch_size, shuffle=False)
-    ds_test = TS_dataset(p, fct=fct, flag='test')
+    ds_test = TS_dataset(p, fct=fct, flag='test', skip_col=skip_col)
     dl_test = DataLoader(ds_test, batch_size=batch_size, shuffle=False)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = Model(config).to(device)
-    opt = torch.optim.SGD(model.parameters(), lr=config.learning_rate)
-    loss_fn = nn.L1Loss()
+    model = Model(config).float().to(device)
+    opt = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    loss_fn = nn.MSELoss()
 
-    if config.loadpath is not None:
-        model.load_state_dict(torch.load(config.loadpath))
-        print(f"Model loaded from {config.loadpath}")
+    '''if config.checkpoints is not None:
+        if os.path.exists(config.checkpoints):
+            model.load_state_dict(torch.load(config.checkpoints))
+            print(f"Model loaded from {config.checkpoints}")
+        else:
+            print(f"Checkpoints file {config.checkpoints} does not exist, starting training from scratch.")
+            os.makedirs(os.path.dirname(config.checkpoints), exist_ok=True)'''
 
-    fit(dl, epochs=config.epochs, dl_val=dl_val)
+    fit(dl, epochs=config.train_epochs, dl_val=dl_val)
     # save model
-    torch.save(model.state_dict(), config.savepath)
+    torch.save(model.state_dict(), config.checkpoints)
     # load model
     #model.load_state_dict(torch.load('./src/cache/us/model.pth'))
