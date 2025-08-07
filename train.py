@@ -16,64 +16,76 @@ from src.models.transformers import Model
 
 from src.dataset import TS_dataset
 
-def train(model, opt, loss_fn, dataloader):
-    model.train()
-    total_loss = 0
-    losses = []
-    print(f"Training...{datetime.datetime.now()}")
-    for i, (x, y, x_mark, y_mark) in enumerate(dataloader):
-        x = x.float().to(device)
-        y = y.float().to(device)
+class LongTermLearner():
+    def __init__(self, config, Model, trn_dl, val_dl, tst_dl, opt, loss_fn, device='cpu'):
+        self.config = config
+        self.model = Model
+        self.trn_dl = trn_dl
+        self.val_dl = val_dl
+        self.tst_dl = tst_dl
+        self.device = device
+        self.opt = opt
+        self.loss_fn = loss_fn
 
-        seq_len = y.size(1)
-        tgt_mask = model.generate_square_subsequent_mask(seq_len).to(device)
+    def train(self):
+        self.model.train()
+        total_loss = 0
+        losses = []
 
-        pred = model(x, y, tgt_mask)
-        if pred.shape != y.shape:
-            y = y[:,:,0].reshape(list(y.shape[:2]) + [1])
-        loss = loss_fn(pred, y)
-        loss.backward()
+        print(f"Training...{datetime.datetime.now()}")
+        for i, (x, y, x_mark, y_mark) in enumerate(self.trn_dl):
+            x = x.float().to(self.device)
+            y = y.float().to(self.device)
+            x_mark = x_mark.float().to(self.device)
+            y_mark = y_mark.float().to(self.device)
 
-        if i % 100 == 0:
-            print(f"Batch {i}, Loss: {loss.item():.4f}")
-            opt.step()
-            opt.zero_grad()
+            f_dim = -1 if self.config.features == 'MS' else 0
+            pred = self.model(x, x_mark, y, y_mark)
+            pred = pred[:, -self.config.pred_len:, f_dim:]
+            y = y[:, -self.config.pred_len:, f_dim:].to(self.device)
 
-        losses.append(loss.detach().item())
-        total_loss += loss.detach().item()
+            loss = self.loss_fn(pred, y) / 100
+            loss.backward()
 
-    return total_loss / len(dataloader)
+            if (i+1) % 100 == 0:
+                print(f"Batch {i}, Loss: {loss.item():.4f}")
+                self.opt.step()
+                self.opt.zero_grad()
 
-def validation(model, loss_fn, dataloader):
-    model.eval()
-    total_loss = 0
-
-    with torch.no_grad():
-        for i, (x, y) in enumerate(dataloader):
-            x = x.to(device)
-            y = y.to(device)
-
-            y_input = y[:,:-1]
-            y_expected = y[:,1:]
-
-            seq_len = y_input.size(1)
-            tgt_mask = model.generate_square_subsequent_mask(seq_len).to(device)
-
-            pred = model(x, y_input, tgt_mask)
-
-            if pred.shape != y_expected.shape:
-                y_expected = y_expected[:, :, 0].reshape(list(y_expected.shape[:2]) + [1])
-            loss = loss_fn(pred, y_expected)
+            losses.append(loss.detach().item())
             total_loss += loss.detach().item()
 
-    return total_loss / len(dataloader)
+        return total_loss / len(self.trn_dl)
 
-def fit(dl, dl_val, epochs=32):
-    for epoch in range(epochs):
-        loss = train(model, opt, loss_fn, dl)
-        print(f"Epoch {epoch+1}, Loss: {loss:.4f}")
-        validation_loss = validation(model, loss_fn, dl_val)
-        print(f"Epoch {epoch+1}, Validation Loss: {validation_loss:.4f}")
+    def validation(self):
+        self.model.eval()
+        total_loss = 0
+
+        with torch.no_grad():
+            for i, (x, y, x_mark, y_mark) in enumerate(self.val_dl):
+                x = x.to(device)
+                y = y.to(device)
+                x_mark = x_mark.to(device)
+                y_mark = y_mark.to(device)
+
+                f_dim = -1 if self.config.features == 'MS' else 0
+                pred = self.model(x, x_mark, y, y_mark)
+                pred = pred[:, -self.config.pred_len:, f_dim:]
+                y = y[:, -self.config.pred_len:, f_dim:].to(self.device)
+
+                loss = self.loss_fn(pred, y)
+                total_loss += loss.detach().item()
+
+        return total_loss / len(self.val_dl)
+
+    def fit(self, epochs=32):
+        for epoch in range(epochs):
+            loss = self.train()
+            print(f"Epoch {epoch+1}, Loss: {loss:.4f}")
+            validation_loss = self.validation()
+            print(f"Epoch {epoch+1}, Validation Loss: {validation_loss:.4f}")
+
+        return self.model
 
 def load_factors(path, factors, format='csv'):
     fct = []
@@ -128,9 +140,9 @@ if __name__ == "__main__":
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = Model(config).float().to(device)
+    model = Model(config).to(device).float()
     opt = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    loss_fn = nn.MSELoss()
+    loss_fn = nn.L1Loss()
 
     '''if config.checkpoints is not None:
         if os.path.exists(config.checkpoints):
@@ -140,7 +152,9 @@ if __name__ == "__main__":
             print(f"Checkpoints file {config.checkpoints} does not exist, starting training from scratch.")
             os.makedirs(os.path.dirname(config.checkpoints), exist_ok=True)'''
 
-    fit(dl, epochs=config.train_epochs, dl_val=dl_val)
+    ltl = LongTermLearner(config, model, dl, dl_val, dl_test, opt, loss_fn, device)
+
+    ltl.fit(epochs=config.train_epochs)
     # save model
     torch.save(model.state_dict(), config.checkpoints)
     # load model
