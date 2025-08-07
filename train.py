@@ -12,6 +12,7 @@ import pandas as pd
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
+from src.utils.tools import EarlyStopping, adjust_learning_rate, visual
 from src.models.transformers import Model
 
 from src.dataset import TS_dataset
@@ -27,13 +28,13 @@ class LongTermLearner():
         self.opt = opt
         self.loss_fn = loss_fn
 
-    def train(self):
+    def train(self, dl):
         self.model.train()
         total_loss = 0
         losses = []
 
         print(f"Training...{datetime.datetime.now()}")
-        for i, (x, y, x_mark, y_mark) in enumerate(self.trn_dl):
+        for i, (x, y, x_mark, y_mark) in enumerate(dl):
             x = x.float().to(self.device)
             y = y.float().to(self.device)
             x_mark = x_mark.float().to(self.device)
@@ -47,7 +48,7 @@ class LongTermLearner():
             loss = self.loss_fn(pred, y) / 100
             loss.backward()
 
-            if (i+1) % 100 == 0:
+            if (i+1) % 10 == 0:
                 print(f"Batch {i}, Loss: {loss.item():.4f}")
                 self.opt.step()
                 self.opt.zero_grad()
@@ -55,14 +56,14 @@ class LongTermLearner():
             losses.append(loss.detach().item())
             total_loss += loss.detach().item()
 
-        return total_loss / len(self.trn_dl)
+        return total_loss / len(dl)
 
-    def validation(self):
+    def validation(self, dl):
         self.model.eval()
         total_loss = 0
 
         with torch.no_grad():
-            for i, (x, y, x_mark, y_mark) in enumerate(self.val_dl):
+            for i, (x, y, x_mark, y_mark) in enumerate(dl):
                 x = x.to(device)
                 y = y.to(device)
                 x_mark = x_mark.to(device)
@@ -76,14 +77,25 @@ class LongTermLearner():
                 loss = self.loss_fn(pred, y)
                 total_loss += loss.detach().item()
 
-        return total_loss / len(self.val_dl)
+        return total_loss / len(dl)
 
     def fit(self, epochs=32):
+        early_stopping = EarlyStopping(patience=self.config.patience, verbose=True)
         for epoch in range(epochs):
-            loss = self.train()
+            loss = self.train(self.trn_dl)
             print(f"Epoch {epoch+1}, Loss: {loss:.4f}")
-            validation_loss = self.validation()
+            validation_loss = self.validation(self.val_dl)
             print(f"Epoch {epoch+1}, Validation Loss: {validation_loss:.4f}")
+            test_loss = self.validation(self.tst_dl)
+            print(f"Epoch {epoch+1}, Test Loss: {test_loss:.4f}")
+            early_stopping(validation_loss, self.model, self.config.checkpoints)
+            if early_stopping.early_stop:
+                print("Early stopping")
+                break
+            adjust_learning_rate(self.opt, epoch+1, self.config)
+
+        best_model_path = self.config.checkpoints + '/checkpoint.pth'
+        self.model.load_state_dict(torch.load(best_model_path))
 
         return self.model
 
@@ -121,22 +133,24 @@ if __name__ == "__main__":
 
     config = read_config('./config.ini')
 
-    country = 'europe'
+    country = 'us'
     flag = 'train'
     batch_size = config.batch_size
     # build data
     r = pd.read_parquet(f'./data/{country}/returns.parquet')
     p = (r + 1).cumprod()
 
-    fct = load_factors('./data/europe', ['value', 'size', 'momentum', 'investment', 'profitability'], 'parquet')
+    fct = load_factors('./data/us', ['value', 'size', 'momentum', 'investment', 'profitability'], 'parquet')
 
+    size = [config.seq_len, config.label_len, config.pred_len]
     skip_col = [0, 2, 3, 4]  # columns to skip normalization
-    ds = TS_dataset(p, fct=fct, size=[config.seq_len, config.label_len, config.pred_len], flag='train', skip_col=skip_col)
+    ds = TS_dataset(p, fct=fct, size=size, flag='train', skip_col=skip_col)
     dl = DataLoader(ds, batch_size=batch_size, shuffle=True)
-    ds_val = TS_dataset(p, fct=fct, flag='valid', skip_col=skip_col)
+    ds_val = TS_dataset(p, fct=fct, size=size, flag='valid', skip_col=skip_col)
     dl_val = DataLoader(ds_val, batch_size=batch_size, shuffle=False)
-    ds_test = TS_dataset(p, fct=fct, flag='test', skip_col=skip_col)
+    ds_test = TS_dataset(p, fct=fct, size=size, flag='test', skip_col=skip_col)
     dl_test = DataLoader(ds_test, batch_size=batch_size, shuffle=False)
+    print(f"Data loaded: {len(ds)} train, {len(ds_val)} val, {len(ds_test)} test")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -144,18 +158,6 @@ if __name__ == "__main__":
     opt = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     loss_fn = nn.L1Loss()
 
-    '''if config.checkpoints is not None:
-        if os.path.exists(config.checkpoints):
-            model.load_state_dict(torch.load(config.checkpoints))
-            print(f"Model loaded from {config.checkpoints}")
-        else:
-            print(f"Checkpoints file {config.checkpoints} does not exist, starting training from scratch.")
-            os.makedirs(os.path.dirname(config.checkpoints), exist_ok=True)'''
-
     ltl = LongTermLearner(config, model, dl, dl_val, dl_test, opt, loss_fn, device)
 
-    ltl.fit(epochs=config.train_epochs)
-    # save model
-    torch.save(model.state_dict(), config.checkpoints)
-    # load model
-    #model.load_state_dict(torch.load('./src/cache/us/model.pth'))
+    model = ltl.fit(epochs=config.train_epochs)

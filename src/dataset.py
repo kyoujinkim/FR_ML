@@ -30,13 +30,28 @@ class TS_dataset(Dataset):
         self.scaler = StandardScaler()
 
         if train_pct is None:
-            pct = [0.6, 0.1, 0.3]
+            pct = [0.6, 0.2, 0.2]
         else:
             assert len(train_pct) == 3
             pct = train_pct
 
-        brdst_l = [0, len(price)*pct[0] - self.seq_len, len(price)*pct[0]+len(price)*pct[1] - self.seq_len]
-        brded_l = [len(price)*pct[0], len(price)*pct[0]+len(price)*pct[1], len(price)*pct[0]+len(price)*pct[1]+len(price)*pct[2]]
+        def mark_non_null_count(df, n):
+            total_non_nulls = (~df.isna()).cumsum() - 1  # 이전까지 비결측 개수
+
+            # total_non_nulls가 n 이상이면 1, 아니면 0
+            result = (total_non_nulls >= n).astype(int)
+            return result
+
+        df_result = mark_non_null_count(price, self.seq_len + self.pred_len)
+
+        # should split dataset based on ratio of row * column numbers
+        price_len = df_result.sum(axis=1); rolling_len = price_len.cumsum(); total_len = price_len.sum()
+        train_num = (rolling_len <= total_len * pct[0]).sum()
+        valid_num = (rolling_len <= total_len * (pct[0] + pct[1])).sum()
+        test_num = (rolling_len <= total_len).sum()
+
+        brdst_l = [0, train_num - self.seq_len, valid_num - self.seq_len]
+        brded_l = [train_num, valid_num, test_num]
         brdst = int(brdst_l[self.type])
         brded = int(brded_l[self.type])
         price = price.iloc[brdst:brded]
