@@ -110,7 +110,7 @@ class LongTermLearner():
     def test(self, model_name, country, checkpath='', save_path:str=''):
         self.model.eval()
 
-        self.model.load_state_dict(torch.load(f'./{checkpath}/checkpoint.pth'))#f'/{model}_{country}_checkpoint.pth'))
+        self.model.load_state_dict(torch.load(f'./{checkpath}/{model_name}_{country}_checkpoint.pth'))
 
         with torch.no_grad():
             pred = []
