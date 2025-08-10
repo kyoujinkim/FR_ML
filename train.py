@@ -8,12 +8,20 @@ import configparser
 import datetime
 import os.path
 
+import numpy as np
 import pandas as pd
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+from src.utils.metrics import metric
 from src.utils.tools import EarlyStopping, adjust_learning_rate, visual
-from src.models.transformers import Model
+from src.models.transformers import Model as Model
+from src.models.autoformer import Model as autoModel
+from src.models.informer import Model as inModel
+from src.models.iTransformer import Model as iModel
+from src.models.patchTST import Model as patchModel
 
 from src.dataset import TS_dataset
 
@@ -79,25 +87,61 @@ class LongTermLearner():
 
         return total_loss / len(dl)
 
-    def fit(self, epochs=32):
+    def fit(self, epochs=32, country='us', model_name=None):
         early_stopping = EarlyStopping(patience=self.config.patience, verbose=True)
         for epoch in range(epochs):
             loss = self.train(self.trn_dl)
             print(f"Epoch {epoch+1}, Loss: {loss:.4f}")
             validation_loss = self.validation(self.val_dl)
             print(f"Epoch {epoch+1}, Validation Loss: {validation_loss:.4f}")
-            test_loss = self.validation(self.tst_dl)
-            print(f"Epoch {epoch+1}, Test Loss: {test_loss:.4f}")
+            #test_loss = self.validation(self.tst_dl)
+            #print(f"Epoch {epoch+1}, Test Loss: {test_loss:.4f}")
             early_stopping(validation_loss, self.model, self.config.checkpoints)
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
             adjust_learning_rate(self.opt, epoch+1, self.config)
 
-        best_model_path = self.config.checkpoints + '/checkpoint.pth'
+        best_model_path = self.config.checkpoints + f'/{model_name}_{country}_checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
 
         return self.model
+
+    def test(self, model_name, country):
+        self.model.eval()
+
+        self.model.load_state_dict(torch.load(self.config.checkpoints + f'/checkpoint.pth'))#f'/{model}_{country}_checkpoint.pth'))
+
+        with torch.no_grad():
+            pred = []
+            true = []
+            for i, (x, y, x_mark, y_mark) in enumerate(tqdm(dl)):
+                x = x.to(device)
+                y = y.to(device)
+                x_mark = x_mark.to(device)
+                y_mark = y_mark.to(device)
+
+                f_dim = -1 if self.config.features == 'MS' else 0
+                output = self.model(x, x_mark, y, y_mark)
+                output = output[:, -self.config.pred_len:, f_dim:]
+                y = y[:, -self.config.pred_len:, f_dim:]
+
+                pred.append(output.detach().numpy())
+                true.append(y.detach().numpy())
+
+        pred = np.concatenate(pred, axis=0)
+        true = np.concatenate(true, axis=0)
+        pred = pred.reshape(-1, pred.shape[-2], pred.shape[-1])
+        true = true.reshape(-1, true.shape[-2], true.shape[-1])
+
+        mae, mse, rmse, mape, mspe = metric(pred, true)
+        result_text = f'setting: {model_name} - {country}, mae: {mae:.4f}, mse: {mse:.4f}, rmse: {rmse:.4f}, mape: {mape:.4f}, mspe: {mspe:.4f}'
+        print(result_text)
+        f = open("result_long_term_forecast.txt", 'a')
+        f.write(result_text + "\n")
+        f.close()
+
+        return True
 
 def load_factors(path, factors, format='csv'):
     fct = []
@@ -133,7 +177,10 @@ if __name__ == "__main__":
 
     config = read_config('./config.ini')
 
+    model_list = ['transformer', 'autoformer', 'informer', 'iTransformer', 'patchTST']
+
     country = 'us'
+    model = 'transformer'
     flag = 'train'
     batch_size = config.batch_size
     # build data
@@ -154,10 +201,24 @@ if __name__ == "__main__":
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = Model(config).to(device).float()
-    opt = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    loss_fn = nn.L1Loss()
+    for m in model_list:
+        if m == 'transformer':
+            model = Model(config).to(device).float()
+        elif m == 'autoformer':
+            model = autoModel(config).to(device).float()
+        elif m == 'informer':
+            model = inModel(config).to(device).float()
+        elif m == 'iTransformer':
+            model = iModel(config).to(device).float()
+        elif m == 'patchTST':
+            model = patchModel(config).to(device).float()
+        else:
+            raise ValueError(f"Unsupported model: {m}")
 
-    ltl = LongTermLearner(config, model, dl, dl_val, dl_test, opt, loss_fn, device)
+        opt = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+        loss_fn = nn.L1Loss()
 
-    model = ltl.fit(epochs=config.train_epochs)
+        ltl = LongTermLearner(config, model, dl, dl_val, dl_test, opt, loss_fn, device)
+
+        model = ltl.fit(epochs=config.train_epochs, country=country, model=m)
+        ltl.test(model=m, country=country)
