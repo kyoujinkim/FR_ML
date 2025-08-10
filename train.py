@@ -72,10 +72,10 @@ class LongTermLearner():
 
         with torch.no_grad():
             for i, (x, y, x_mark, y_mark) in enumerate(dl):
-                x = x.to(device)
-                y = y.to(device)
-                x_mark = x_mark.to(device)
-                y_mark = y_mark.to(device)
+                x = x.to(self.device)
+                y = y.to(self.device)
+                x_mark = x_mark.to(self.device)
+                y_mark = y_mark.to(self.device)
 
                 f_dim = -1 if self.config.features == 'MS' else 0
                 pred = self.model(x, x_mark, y, y_mark)
@@ -116,10 +116,10 @@ class LongTermLearner():
             pred = []
             true = []
             for i, (x, y, x_mark, y_mark) in enumerate(tqdm(dl)):
-                x = x.to(device)
-                y = y.to(device)
-                x_mark = x_mark.to(device)
-                y_mark = y_mark.to(device)
+                x = x.to(self.device)
+                y = y.to(self.device)
+                x_mark = x_mark.to(self.device)
+                y_mark = y_mark.to(self.device)
 
                 f_dim = -1 if self.config.features == 'MS' else 0
                 output = self.model(x, x_mark, y, y_mark)
