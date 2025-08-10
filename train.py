@@ -123,13 +123,21 @@ class LongTermLearner():
                 x_mark = x_mark.to(self.device)
                 y_mark = y_mark.to(self.device)
 
-                f_dim = -1 if self.config.features == 'MS' else 0
-                output = self.model(x, x_mark, y, y_mark)
-                output = output[:, -self.config.pred_len:, f_dim:]
-                y = y[:, -self.config.pred_len:, f_dim:]
+                # decoder input
+                dec_inp = torch.zeros_like(y[:, -self.args.pred_len:, :]).float()
+                dec_inp = torch.cat([y[:, :self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
 
-                pred.append(output.detach().numpy())
-                true.append(y.detach().numpy())
+                f_dim = -1 if self.config.features == 'MS' else 0
+                output = self.model(x, x_mark, dec_inp, y_mark)
+
+                output = output[:, -self.config.pred_len:, :]
+                y = y[:, -self.config.pred_len:, :]
+
+                output = output.detach().cpu().numpy()[:, :, f_dim:]
+                y = y.detach().cpu().numpy()[:, :, f_dim:]
+
+                pred.append(output)
+                true.append(y)
 
         pred = np.concatenate(pred, axis=0)
         true = np.concatenate(true, axis=0)
