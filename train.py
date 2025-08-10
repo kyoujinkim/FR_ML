@@ -107,7 +107,7 @@ class LongTermLearner():
 
         return self.model
 
-    def test(self, model_name, country):
+    def test(self, model_name, country, save_path:str=''):
         self.model.eval()
 
         self.model.load_state_dict(torch.load(self.config.checkpoints + f'/checkpoint.pth'))#f'/{model}_{country}_checkpoint.pth'))
@@ -137,7 +137,7 @@ class LongTermLearner():
         mae, mse, rmse, mape, mspe = metric(pred, true)
         result_text = f'setting: {model_name} - {country}, mae: {mae:.4f}, mse: {mse:.4f}, rmse: {rmse:.4f}, mape: {mape:.4f}, mspe: {mspe:.4f}'
         print(result_text)
-        f = open("result_long_term_forecast.txt", 'a')
+        f = open(f"./{save_path}/result_long_term_forecast.txt", 'a')
         f.write(result_text + "\n")
         f.close()
 
@@ -221,4 +221,4 @@ if __name__ == "__main__":
         ltl = LongTermLearner(config, model, dl, dl_val, dl_test, opt, loss_fn, device)
 
         model = ltl.fit(epochs=config.train_epochs, country=country, model=m)
-        ltl.test(model=m, country=country)
+        ltl.test(model=m, country=country, save_path='')
