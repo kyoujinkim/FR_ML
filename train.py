@@ -87,7 +87,7 @@ class LongTermLearner():
 
         return total_loss / len(dl)
 
-    def fit(self, epochs=32, country='us', model_name=None):
+    def fit(self, epochs=32, country='us', model_name=None, checkpath=''):
         early_stopping = EarlyStopping(patience=self.config.patience, verbose=True)
         for epoch in range(epochs):
             loss = self.train(self.trn_dl)
@@ -102,15 +102,15 @@ class LongTermLearner():
                 break
             adjust_learning_rate(self.opt, epoch+1, self.config)
 
-        best_model_path = self.config.checkpoints + f'/{model_name}_{country}_checkpoint.pth'
+        best_model_path = f'./{checkpath}/{model_name}_{country}_checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
 
         return self.model
 
-    def test(self, model_name, country, save_path:str=''):
+    def test(self, model_name, country, checkpath='', save_path:str=''):
         self.model.eval()
 
-        self.model.load_state_dict(torch.load(self.config.checkpoints + f'/checkpoint.pth'))#f'/{model}_{country}_checkpoint.pth'))
+        self.model.load_state_dict(torch.load(f'./{checkpath}/checkpoint.pth'))#f'/{model}_{country}_checkpoint.pth'))
 
         with torch.no_grad():
             pred = []
