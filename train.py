@@ -87,9 +87,9 @@ class LongTermLearner():
 
         return total_loss / len(dl)
 
-    def fit(self, epochs=32, country='us', model_name=None, checkpath=''):
-        if not os.path.exists(f'./{checkpath}'):
-            os.makedirs(f'./{checkpath}')
+    def fit(self, epochs=32, checkpath=''):
+        if not os.path.exists(f'{checkpath}'):
+            os.makedirs(f'{checkpath}')
         early_stopping = EarlyStopping(patience=self.config.patience, verbose=True)
         for epoch in range(epochs):
             loss = self.train(self.trn_dl)
@@ -98,13 +98,13 @@ class LongTermLearner():
             print(f"Epoch {epoch+1}, Validation Loss: {validation_loss:.4f}")
             #test_loss = self.validation(self.tst_dl)
             #print(f"Epoch {epoch+1}, Test Loss: {test_loss:.4f}")
-            early_stopping(validation_loss, self.model, f'./{checkpath}')
+            early_stopping(validation_loss, self.model, f'{checkpath}')
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
             adjust_learning_rate(self.opt, epoch+1, self.config)
 
-        best_model_path = f'./{checkpath}/checkpoint.pth'
+        best_model_path = f'{checkpath}/checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
 
         return self.model
@@ -112,12 +112,12 @@ class LongTermLearner():
     def test(self, model_name, country, checkpath='', save_path:str=''):
         self.model.eval()
 
-        self.model.load_state_dict(torch.load(f'./{checkpath}/checkpoint.pth'))
+        self.model.load_state_dict(torch.load(f'{checkpath}/checkpoint.pth'))
 
         with torch.no_grad():
             pred = []
             true = []
-            for i, (x, y, x_mark, y_mark) in enumerate(tqdm(dl)):
+            for i, (x, y, x_mark, y_mark) in enumerate(tqdm(self.tst_dl)):
                 x = x.to(self.device)
                 y = y.to(self.device)
                 x_mark = x_mark.to(self.device)
