@@ -87,7 +87,7 @@ class LongTermLearner():
 
         return total_loss / len(dl)
 
-    def fit(self, epochs=32, checkpath=''):
+    def fit(self, epochs=32, checkpath:str='', save_path:str=''):
         if not os.path.exists(f'{checkpath}'):
             os.makedirs(f'{checkpath}')
         early_stopping = EarlyStopping(patience=self.config.patience, verbose=True)
@@ -96,11 +96,17 @@ class LongTermLearner():
             print(f"Epoch {epoch+1}, Loss: {loss:.4f}")
             validation_loss = self.validation(self.val_dl)
             print(f"Epoch {epoch+1}, Validation Loss: {validation_loss:.4f}")
-            #test_loss = self.validation(self.tst_dl)
-            #print(f"Epoch {epoch+1}, Test Loss: {test_loss:.4f}")
+            # save learning history
+            f = open(f"./{save_path}/result_long_term_train.txt", 'a')
+            f.write(f'Epoch {epoch+1}, Loss: {loss:.4f}, Validation Loss: {validation_loss:.4f}\n')
+            f.close()
+
             early_stopping(validation_loss, self.model, f'{checkpath}')
             if early_stopping.early_stop:
                 print("Early stopping")
+                f = open(f"./{save_path}/result_long_term_train.txt", 'a')
+                f.write(f"Epoch {epoch - early_stopping.counter}, Loss: Early Stopped, Validation Loss: {early_stopping.best_score:.4f}\n")
+                f.close()
                 break
             adjust_learning_rate(self.opt, epoch+1, self.config)
 
@@ -109,7 +115,7 @@ class LongTermLearner():
 
         return self.model
 
-    def test(self, model_name, country, checkpath='', save_path:str=''):
+    def test(self, model_name, country, checkpath:str='', save_path:str=''):
         self.model.eval()
 
         self.model.load_state_dict(torch.load(f'{checkpath}/checkpoint.pth'))
