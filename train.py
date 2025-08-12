@@ -124,8 +124,8 @@ class LongTermLearner():
                 y_mark = y_mark.to(self.device)
 
                 # decoder input
-                dec_inp = torch.zeros_like(y[:, -self.args.pred_len:, :]).float()
-                dec_inp = torch.cat([y[:, :self.args.label_len, :], dec_inp], dim=1).float().to(self.device)
+                dec_inp = torch.zeros_like(y[:, -self.config.pred_len:, :]).float()
+                dec_inp = torch.cat([y[:, :self.config.label_len, :], dec_inp], dim=1).float().to(self.device)
 
                 f_dim = -1 if self.config.features == 'MS' else 0
                 output = self.model(x, x_mark, dec_inp, y_mark)
