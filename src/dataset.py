@@ -88,7 +88,7 @@ class TS_dataset(Dataset):
             ).values
             d = d.values
 
-            for j in range(0, len(d), self.seq_len):
+            for j in range(0, len(d), self.pred_len):
                 s_begin = j
                 s_end = j + self.seq_len
                 r_begin = s_end - self.label_len
