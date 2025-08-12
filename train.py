@@ -87,7 +87,7 @@ class LongTermLearner():
 
         return total_loss / len(dl)
 
-    def fit(self, epochs=32, checkpath:str='', save_path:str=''):
+    def fit(self, model_name, country, epochs=32, checkpath:str='', save_path:str=''):
         if not os.path.exists(f'{checkpath}'):
             os.makedirs(f'{checkpath}')
         early_stopping = EarlyStopping(patience=self.config.patience, verbose=True)
@@ -98,14 +98,14 @@ class LongTermLearner():
             print(f"Epoch {epoch+1}, Validation Loss: {validation_loss:.4f}")
             # save learning history
             f = open(f"./{save_path}/result_long_term_train.txt", 'a')
-            f.write(f'Epoch {epoch+1}, Loss: {loss:.4f}, Validation Loss: {validation_loss:.4f}\n')
+            f.write(f'{model_name}-{country}, Epoch {epoch+1}, Loss: {loss:.4f}, Validation Loss: {validation_loss:.4f}\n')
             f.close()
 
             early_stopping(validation_loss, self.model, f'{checkpath}')
             if early_stopping.early_stop:
                 print("Early stopping")
                 f = open(f"./{save_path}/result_long_term_train.txt", 'a')
-                f.write(f"Epoch {epoch - early_stopping.counter}, Loss: Early Stopped, Validation Loss: {early_stopping.best_score:.4f}\n")
+                f.write(f"{model_name}-{country}, Epoch {epoch - early_stopping.counter}, Loss: Early Stopped, Validation Loss: {early_stopping.best_score:.4f}\n")
                 f.close()
                 break
             adjust_learning_rate(self.opt, epoch+1, self.config)
