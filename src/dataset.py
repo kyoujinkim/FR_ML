@@ -105,9 +105,9 @@ class TS_dataset(Dataset):
                 # normalize data
                 x = d[s_begin : s_end] / base
                 y = d[r_begin : r_end] / base
-                # clip values to avoid overflow
-                x = x.clip(-10, 10)
-                y = y.clip(-10, 10)
+                # clip values to avoid overflow, preserve data for last column
+                x = x.clip(-3, 3)
+                y = y.clip(-3, 3)
 
                 data.append([x, y])
                 # append timestamps
