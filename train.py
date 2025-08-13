@@ -7,6 +7,7 @@ import argparse
 import configparser
 import datetime
 import os.path
+from multiprocessing import Pool
 
 import numpy as np
 import pandas as pd
@@ -14,6 +15,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from tqdm.contrib.concurrent import process_map
 
 from src.utils.metrics import metric
 from src.utils.tools import EarlyStopping, adjust_learning_rate, visual
@@ -163,7 +165,7 @@ def load_factors(path, factors, format='csv'):
     fct = []
     for f in factors:
         if format=='csv':
-            fct.append(pd.read_csv(f'./{path}/{f}.csv', index_col=0, parse_dates=True))
+            fct.append(pd.read_csv(f'{path}/{f}.csv', index_col=0, parse_dates=True))
         elif format=='parquet':
             fct.append(pd.read_parquet(f'{path}/{f}.parquet'))
         else:
@@ -189,6 +191,58 @@ class read_config():
                 var = var
             setattr(self, name, var)
 
+def _calc_beta_batch(args):
+    """Process multiple rows in a batch"""
+    indices, p_values, factor_values = args
+    results = []
+
+    for i in indices:
+        window_start = i - 51
+        p_window = p_values[window_start:i + 1]
+        f_window = factor_values[window_start:i + 1]
+
+        f_var = np.var(f_window, ddof=1)
+        if f_var > 0:
+            beta_row = np.cov(p_window.T, f_window)[:-1, -1] / f_var
+        else:
+            beta_row = np.full(p_window.shape[1], np.nan)
+
+        results.append((i, beta_row))
+
+    return results
+
+
+def calc_beta_optimized_batch(p, f, n_processes=None, batch_size=100):
+    if n_processes is None:
+        n_processes = os.cpu_count()
+
+    # reindex f as p
+    f = f.reindex(p.index, method='ffill')
+    factor_col = f.columns[0]
+    factor_values = f[factor_col].values
+    p_values = p.values
+
+    beta = np.full((len(p), len(p.columns)), np.nan)
+
+    # Create batches of indices
+    indices = list(range(51, len(p)))
+    # randomly sample indices to avoid bias
+    np.random.shuffle(indices)
+    batches = [indices[i:i + batch_size] for i in range(0, len(indices), batch_size)]
+
+    # Prepare arguments for multiprocessing
+    args = [(batch, p_values, factor_values) for batch in batches]
+
+    batch_results = process_map(_calc_beta_batch, args, max_workers=n_processes, desc="Calculating beta")
+
+    # Fill results
+    for batch_result in batch_results:
+        for i, beta_row in batch_result:
+            beta[i] = beta_row
+
+    return pd.DataFrame(beta, index=p.index, columns=p.columns)
+
+
 if __name__ == "__main__":
 
     config = read_config('./config.ini')
@@ -200,10 +254,11 @@ if __name__ == "__main__":
     flag = 'train'
     batch_size = config.batch_size
     # build data
-    r = pd.read_parquet(f'./data/{country}/returns.parquet')
+    r = pd.read_parquet(f'C:/Users/NHWM/PycharmProjects/Factor_Research/cache/{country}/returns.parquet')
     p = (r + 1).cumprod()
-
-    fct = load_factors('./data/us', ['value', 'size', 'momentum', 'investment', 'profitability'], 'parquet')
+    #fct = load_factors(f'./data/{country}', ['value', 'size', 'momentum', 'investment', 'profitability'], 'parquet')
+    bm = load_factors(f'C:/Users/NHWM/PycharmProjects/Factor_Research/output/{country}/bm', ['BM','SMB','OP','MOM','INV','HML'], 'csv')
+    fct = [calc_beta_optimized_batch(p, b) for b in bm]
 
     size = [config.seq_len, config.label_len, config.pred_len]
     skip_col = [0, 2, 3, 4]  # columns to skip normalization
