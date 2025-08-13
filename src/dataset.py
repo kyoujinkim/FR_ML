@@ -88,36 +88,34 @@ class TS_dataset(Dataset):
             ).values
             d = d.values
 
-            for j in range(0, len(d), self.pred_len):
+            for j in range(0, len(d) - self.seq_len - self.pred_len + 1, self.pred_len):
                 s_begin = j
                 s_end = j + self.seq_len
                 r_begin = s_end - self.label_len
                 r_end = s_end + self.pred_len
 
-                # break if not enough data for a full sequence
-                if j + self.seq_len + self.pred_len > len(d):
-                    break
+                x_base = d[s_begin: s_end]
+                y_base = d[r_begin: r_end]
 
                 # normalize target data first
-                base = d[j + self.seq_len - 1].copy()
-                x_norm = d[s_begin: s_end] / base
-                y_norm = d[r_begin: r_end] / base
+                base = d[s_end - 1].copy()
+                x_norm = x_base / base
+                y_norm = y_base / base
+                x_base[:, -1] = x_norm[:, -1]  # last column should be normalized
+                y_base[:, -1] = y_norm[:, -1]  # last column should be normalized
+
                 # normalize data
                 if std_scale:
-                    x = self.scaler.fit_transform(d[s_begin: s_end])
-                    y = self.scaler.transform(d[r_begin: r_end])
-                    # if skip_col is not None, unset normalization for these columns
-                    if skip_col:
-                        for col in skip_col:
-                            x[:, col] = x_norm[:, col]
-                            y[:, col] = y_norm[:, col]
+                    x = self.scaler.fit_transform(x_base)
+                    y = self.scaler.transform(y_base)
                 else:
-                    if skip_col:
-                        x = x_norm.copy()
-                        y = y_norm.copy()
-                        for col in skip_col:
-                            x[:, col] = d[s_begin: s_end, col]
-                            y[:, col] = d[r_begin: r_end, col]
+                    x = x_norm.copy()
+                    y = y_norm.copy()
+
+                # Restore specific columns if needed
+                if skip_col:
+                    x[:, skip_col] = x_base[:, skip_col]
+                    y[:, skip_col] = y_base[:, skip_col]
 
                 # clip values to avoid overflow, preserve data for last column
                 x = x.clip(-3, 3)
