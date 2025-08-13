@@ -92,6 +92,8 @@ class LongTermLearner():
     def fit(self, model_name, country, epochs=32, checkpath:str='', save_path:str=''):
         if not os.path.exists(f'{checkpath}'):
             os.makedirs(f'{checkpath}')
+        if not os.path.exists(f'{save_path}'):
+            os.makedirs(f'{save_path}')
         early_stopping = EarlyStopping(patience=self.config.patience, verbose=True)
         for epoch in range(epochs):
             loss = self.train(self.trn_dl)
@@ -118,6 +120,11 @@ class LongTermLearner():
         return self.model
 
     def test(self, model_name, country, checkpath:str='', save_path:str=''):
+        if not os.path.exists(f'{checkpath}'):
+            os.makedirs(f'{checkpath}')
+        if not os.path.exists(f'{save_path}'):
+            os.makedirs(f'{save_path}')
+
         self.model.eval()
 
         self.model.load_state_dict(torch.load(f'{checkpath}/checkpoint.pth'))
