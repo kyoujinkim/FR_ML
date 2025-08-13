@@ -98,6 +98,10 @@ class TS_dataset(Dataset):
                 if j + self.seq_len + self.pred_len > len(d):
                     break
 
+                # normalize target data first
+                base = d[j + self.seq_len - 1].copy()
+                x_norm = d[s_begin: s_end] / base
+                y_norm = d[r_begin: r_end] / base
                 # normalize data
                 if std_scale:
                     x = self.scaler.fit_transform(d[s_begin: s_end])
@@ -105,16 +109,15 @@ class TS_dataset(Dataset):
                     # if skip_col is not None, unset normalization for these columns
                     if skip_col:
                         for col in skip_col:
+                            x[:, col] = x_norm[:, col]
+                            y[:, col] = y_norm[:, col]
+                else:
+                    if skip_col:
+                        x = x_norm.copy()
+                        y = y_norm.copy()
+                        for col in skip_col:
                             x[:, col] = d[s_begin: s_end, col]
                             y[:, col] = d[r_begin: r_end, col]
-                else:
-                    # set base for normalization
-                    base = d[j + self.seq_len - 1].copy()
-                    if skip_col:
-                        for col in skip_col:
-                            base[col] = 1  # skip normalization for these columns
-                    x = d[s_begin : s_end] / base
-                    y = d[r_begin : r_end] / base
 
                 # clip values to avoid overflow, preserve data for last column
                 x = x.clip(-3, 3)

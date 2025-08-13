@@ -266,6 +266,8 @@ if __name__ == "__main__":
     fct = load_factors(f'C:/Users/gklb/PycharmProjects/FR_ML/data/{country}', ['value', 'size', 'momentum', 'investment', 'profitability'], 'parquet')
     #bm = load_factors(f'C:/Users/NHWM/PycharmProjects/Factor_Research/output/{country}/bm', ['BM','SMB','OP','MOM','INV','HML'], 'csv')
     #fct = [calc_beta_optimized_batch(p, b) for b in bm]
+    #for f, n in zip(fct, ['BM', 'SMB', 'OP', 'MOM', 'INV', 'HML']):
+    #    f.to_parquet(f'/content/drive/MyDrive/FR_ML/data/{country}/beta_{n}.parquet', engine='pyarrow')
 
     size = [config.seq_len, config.label_len, config.pred_len]
     skip_col = [0, 1, 2, 3, 4]  # columns to skip normalization
