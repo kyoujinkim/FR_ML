@@ -10,7 +10,7 @@ from tqdm import tqdm
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 class TS_dataset(Dataset):
-    def __init__(self, price, fct:list=None, size=None, flag='train', train_pct=None, skip_col:list=None):
+    def __init__(self, price, fct:list=None, size=None, flag='train', train_pct=None, std_scale:bool=False, skip_col:list=None):
         if size is None:
             self.seq_len = 52
             self.label_len = 12
@@ -103,8 +103,13 @@ class TS_dataset(Dataset):
                     for col in skip_col:
                         base[col] = 1  # skip normalization for these columns
                 # normalize data
-                x = d[s_begin : s_end] / base
-                y = d[r_begin : r_end] / base
+                if std_scale:
+                    x = self.scaler.fit_transform(d[s_begin: s_end].reshape(-1, 1)).reshape(-1)
+                    y = self.scaler.transform(d[r_begin: r_end].reshape(-1, 1)).reshape(-1)
+                else:
+                    x = d[s_begin : s_end] / base
+                    y = d[r_begin : r_end] / base
+
                 # clip values to avoid overflow, preserve data for last column
                 x = x.clip(-3, 3)
                 y = y.clip(-3, 3)
