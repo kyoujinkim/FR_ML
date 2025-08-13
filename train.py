@@ -256,13 +256,13 @@ if __name__ == "__main__":
     # build data
     r = pd.read_parquet(f'C:/Users/NHWM/PycharmProjects/Factor_Research/cache/{country}/returns.parquet')
     p = (r + 1).cumprod()
-    #fct = load_factors(f'./data/{country}', ['value', 'size', 'momentum', 'investment', 'profitability'], 'parquet')
-    bm = load_factors(f'C:/Users/NHWM/PycharmProjects/Factor_Research/output/{country}/bm', ['BM','SMB','OP','MOM','INV','HML'], 'csv')
-    fct = [calc_beta_optimized_batch(p, b) for b in bm]
+    fct = load_factors(f'C:/Users/NHWM/PycharmProjects/Factor_Research/cache/{country}', ['value', 'size', 'momentum', 'investment', 'profitability'], 'parquet')
+    #bm = load_factors(f'C:/Users/NHWM/PycharmProjects/Factor_Research/output/{country}/bm', ['BM','SMB','OP','MOM','INV','HML'], 'csv')
+    #fct = [calc_beta_optimized_batch(p, b) for b in bm]
 
     size = [config.seq_len, config.label_len, config.pred_len]
     skip_col = [0, 2, 3, 4]  # columns to skip normalization
-    ds = TS_dataset(p, fct=fct, size=size, flag='train', skip_col=skip_col)
+    ds = TS_dataset(p, fct=fct, size=size, std_scale=True, flag='train', skip_col=skip_col)
     dl = DataLoader(ds, batch_size=batch_size, shuffle=True)
     ds_val = TS_dataset(p, fct=fct, size=size, flag='valid', skip_col=skip_col)
     dl_val = DataLoader(ds_val, batch_size=batch_size, shuffle=False)

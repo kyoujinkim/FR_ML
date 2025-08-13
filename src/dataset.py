@@ -104,8 +104,8 @@ class TS_dataset(Dataset):
                         base[col] = 1  # skip normalization for these columns
                 # normalize data
                 if std_scale:
-                    x = self.scaler.fit_transform(d[s_begin: s_end].reshape(-1, 1)).reshape(-1)
-                    y = self.scaler.transform(d[r_begin: r_end].reshape(-1, 1)).reshape(-1)
+                    x = self.scaler.fit_transform(d[s_begin: s_end])
+                    y = self.scaler.transform(d[r_begin: r_end])
                 else:
                     x = d[s_begin : s_end] / base
                     y = d[r_begin : r_end] / base
