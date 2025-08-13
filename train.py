@@ -261,9 +261,9 @@ if __name__ == "__main__":
     flag = 'train'
     batch_size = config.batch_size
     # build data
-    r = pd.read_parquet(f'C:/Users/gklb/PycharmProjects/FR_ML/data/{country}/returns.parquet')
+    r = pd.read_parquet(f'C:/Users/NHWM/PycharmProjects/Factor_Research/cache/{country}/returns.parquet')
     p = (r + 1).cumprod()
-    fct = load_factors(f'C:/Users/gklb/PycharmProjects/FR_ML/data/{country}', ['value', 'size', 'momentum', 'investment', 'profitability'], 'parquet')
+    fct = load_factors(f'C:/Users/NHWM/PycharmProjects/Factor_Research/cache/{country}', ['value', 'size', 'momentum', 'investment', 'profitability'], 'parquet')
     #bm = load_factors(f'C:/Users/NHWM/PycharmProjects/Factor_Research/output/{country}/bm', ['BM','SMB','OP','MOM','INV','HML'], 'csv')
     #fct = [calc_beta_optimized_batch(p, b) for b in bm]
     #for f, n in zip(fct, ['BM', 'SMB', 'OP', 'MOM', 'INV', 'HML']):
