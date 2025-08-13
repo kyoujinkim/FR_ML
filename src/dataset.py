@@ -97,16 +97,22 @@ class TS_dataset(Dataset):
                 # break if not enough data for a full sequence
                 if j + self.seq_len + self.pred_len > len(d):
                     break
-                # set base for normalization
-                base = d[j+self.seq_len-1].copy()
-                if skip_col:
-                    for col in skip_col:
-                        base[col] = 1  # skip normalization for these columns
+
                 # normalize data
                 if std_scale:
                     x = self.scaler.fit_transform(d[s_begin: s_end])
                     y = self.scaler.transform(d[r_begin: r_end])
+                    # if skip_col is not None, unset normalization for these columns
+                    if skip_col:
+                        for col in skip_col:
+                            x[:, col] = d[s_begin: s_end, col]
+                            y[:, col] = d[r_begin: r_end, col]
                 else:
+                    # set base for normalization
+                    base = d[j + self.seq_len - 1].copy()
+                    if skip_col:
+                        for col in skip_col:
+                            base[col] = 1  # skip normalization for these columns
                     x = d[s_begin : s_end] / base
                     y = d[r_begin : r_end] / base
 
