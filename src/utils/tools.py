@@ -21,7 +21,7 @@ def adjust_learning_rate(optimizer, epoch, args):
     elif args.lradj == 'type3':
         lr_adjust = {epoch: args.learning_rate * (0.9 ** ((epoch - 1) // 1)) if epoch < 2 else args.learning_rate * 0.8 * (0.6 ** ((epoch - 2) // 1)) if epoch < 15 else 1e-7}
     elif args.lradj == "cosine":
-        lr_adjust = {epoch: args.learning_rate /2 * (1 + math.cos(epoch / 10 * math.pi))}
+        lr_adjust = {epoch: args.learning_rate /2 * (1 + math.cos(epoch / 20 * math.pi))}
     if epoch in lr_adjust.keys():
         lr = lr_adjust[epoch]
         for param_group in optimizer.param_groups:
