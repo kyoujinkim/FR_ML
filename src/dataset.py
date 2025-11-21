@@ -99,7 +99,7 @@ class TS_dataset(Dataset):
                 x_base = d[s_begin: s_end]
                 y_base = d[r_begin: r_end]
 
-                if port_weight:
+                if port_weight is not None:
                     try:
                         i_date_loc = port_weight.index.get_indexer([d_timestamp[s_end]], method='nearest')[0]
                         i_loc = port_weight.columns.get_loc(d_name)
