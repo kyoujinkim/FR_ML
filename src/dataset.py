@@ -80,6 +80,7 @@ class TS_dataset(Dataset):
             if len(d) < self.seq_len + self.pred_len:
                 continue
 
+            d_name = d.name
             d_timestamp = d.index
             d_stamp = pd.DataFrame(
                 {
@@ -99,9 +100,13 @@ class TS_dataset(Dataset):
                 y_base = d[r_begin: r_end]
 
                 if port_weight:
-                    i_date = port_weight.index.get_indexer([d_timestamp[s_end]], method='nearest')
-                    if port_weight.loc[i_date, i] == 0:
-                        pass
+                    try:
+                        i_date_loc = port_weight.index.get_indexer([d_timestamp[s_end]], method='nearest')[0]
+                        i_loc = port_weight.columns.get_loc(d_name)
+                        if port_weight.iloc[i_date_loc, i_loc] == 1:
+                            pass
+                    except:
+                        continue
 
                 # normalize target data first
                 base = d[s_end - 1].copy()
