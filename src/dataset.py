@@ -80,8 +80,8 @@ class TS_dataset(Dataset):
             if len(d) < self.seq_len + self.pred_len:
                 continue
 
-            d_name = d.columns[0]
-            d_timestamp = d.index
+            d_name = p.name
+            d_timestamp = p.index
             d_stamp = pd.DataFrame(
                 {
                     'month' : d_timestamp.month,
