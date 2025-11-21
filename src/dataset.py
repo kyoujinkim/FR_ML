@@ -10,7 +10,7 @@ from tqdm import tqdm
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 class TS_dataset(Dataset):
-    def __init__(self, price, fct:list=None, size=None, flag='train', train_pct=None, std_scale:bool=False, skip_col:list=None):
+    def __init__(self, price, fct:list=None, size=None, flag='train', train_pct=None, std_scale:bool=False, skip_col:list=None, port_weight:pd.DataFrame=None):
         if size is None:
             self.seq_len = 52
             self.label_len = 12
@@ -80,10 +80,11 @@ class TS_dataset(Dataset):
             if len(d) < self.seq_len + self.pred_len:
                 continue
 
+            d_timestamp = d.index
             d_stamp = pd.DataFrame(
                 {
-                    'month' : d.index.month,
-                    'day' : d.index.day,
+                    'month' : d_timestamp.month,
+                    'day' : d_timestamp.day,
                 }
             ).values
             d = d.values
@@ -96,6 +97,11 @@ class TS_dataset(Dataset):
 
                 x_base = d[s_begin: s_end]
                 y_base = d[r_begin: r_end]
+
+                if port_weight:
+                    i_date = port_weight.index.get_indexer([d_timestamp[s_end]], method='nearest')
+                    if port_weight.loc[i_date, i] == 0:
+                        pass
 
                 # normalize target data first
                 base = d[s_end - 1].copy()
