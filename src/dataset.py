@@ -69,7 +69,7 @@ class TS_dataset(Dataset):
                     try:
                         f_partial = f.loc[:p.index[-1], p.name].dropna().reindex(p.index, method='ffill')
                     except:
-                        f_partial = pd.Series()
+                        f_partial = pd.Series([0]*len(p), index=p.index, name=p.name)
                     if len(f_partial)==0:
                         f_partial = pd.Series([0]*len(p), index=p.index, name=p.name)
                     d.append(f_partial)
@@ -105,6 +105,8 @@ class TS_dataset(Dataset):
                         i_loc = port_weight.columns.get_loc(d_name)
                         if port_weight.iloc[i_date_loc, i_loc] == 1:
                             pass
+                        else:
+                            continue
                     except:
                         continue
 
