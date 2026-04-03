@@ -174,7 +174,7 @@ def load_factors(path, factors, format='csv'):
         if format=='csv':
             fct.append(pd.read_csv(f'{path}/{f}.csv', index_col=0, parse_dates=True))
         elif format=='parquet':
-            fct.append(pd.read_parquet(f'{path}/{f}.parquet'))
+            fct.append(pd.read_parquet(f'{path}/{f}.parquet').dropna(how='all'))
         else:
             raise ValueError(f"Unsupported file format: {f}")
     return fct
@@ -256,14 +256,14 @@ if __name__ == "__main__":
 
     model_list = ['transformer', 'autoformer', 'informer', 'iTransformer', 'patchTST']
 
-    country = 'us'
+    country = 'korea'
     model = 'transformer'
     flag = 'train'
     batch_size = config.batch_size
     # build data
-    r = pd.read_parquet(f'C:/Users/NHWM/PycharmProjects/Factor_Research/cache/{country}/returns.parquet')
+    r = pd.read_parquet(f'data/{country}/returns.parquet')
     p = (r + 1).cumprod()
-    fct = load_factors(f'C:/Users/NHWM/PycharmProjects/Factor_Research/cache/{country}', ['value', 'size', 'momentum', 'investment', 'profitability'], 'parquet')
+    fct = load_factors(f'data/{country}', ['value', 'size', 'momentum', 'investment', 'profitability'], 'parquet')
     #bm = load_factors(f'C:/Users/NHWM/PycharmProjects/Factor_Research/output/{country}/bm', ['BM','SMB','OP','MOM','INV','HML'], 'csv')
     #fct = [calc_beta_optimized_batch(p, b) for b in bm]
     #for f, n in zip(fct, ['BM', 'SMB', 'OP', 'MOM', 'INV', 'HML']):
