@@ -29,11 +29,11 @@ from train import LongTermLearner, read_config, load_factors
 # Helpers
 # ---------------------------------------------------------------------------
 
-def build_dataloaders(config, country, batch_size):
+def build_dataloaders(config, country, batch_size, data_apath='data'):
     r = pd.read_parquet(f'data/{country}/returns.parquet')
     p = (r + 1).cumprod()
     fct = load_factors(
-        f'data/{country}',
+        f'{data_apath}/{country}',
         ['value', 'size', 'momentum', 'investment', 'profitability'],
         'parquet'
     )
@@ -53,9 +53,9 @@ def build_dataloaders(config, country, batch_size):
 
 
 def run_model(config, model, model_name, country, dl_trn, dl_val, dl_tst,
-              device, loss_fn, epochs, test_only=False):
-    checkpath = f'./checkpoints/{model_name}_{country}'
-    save_path = 'logs'
+              device, loss_fn, epochs, test_only=False, cpath='checkpoints', spath='logs'):
+    checkpath = f'{cpath}/{model_name}_{country}'
+    save_path = spath
     os.makedirs(save_path, exist_ok=True)
 
     opt = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
@@ -96,6 +96,9 @@ def parse_args():
                    help='skip training; load existing checkpoints')
     p.add_argument('--loss',       default='hybrid', choices=['hybrid', 'l1', 'mse'],
                    help='loss function for AMD-Trans')
+    p.add_argument('--data_apath',   default=None, help='absolute path to config file (overrides --config)')
+    p.add_argument('--check_apath',  default=None, help='absolute path to checkpoints (overrides default)')
+    p.add_argument('--save_apath',   default=None, help='absolute path to logs (overrides default)')
     return p.parse_args()
 
 
@@ -105,7 +108,7 @@ if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Device: {device}")
 
-    dl_trn, dl_val, dl_tst = build_dataloaders(config, args.country, config.batch_size)
+    dl_trn, dl_val, dl_tst = build_dataloaders(config, args.country, config.batch_size, args.data_apath)
 
     # ------------------------------------------------------------------
     # Loss function for AMD-Trans
