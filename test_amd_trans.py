@@ -30,7 +30,7 @@ from train import LongTermLearner, read_config, load_factors
 # ---------------------------------------------------------------------------
 
 def build_dataloaders(config, country, batch_size, data_apath='data'):
-    r = pd.read_parquet(f'data/{country}/returns.parquet')
+    r = pd.read_parquet(f'{data_apath}/{country}/returns.parquet')
     p = (r + 1).cumprod()
     fct = load_factors(
         f'{data_apath}/{country}',
