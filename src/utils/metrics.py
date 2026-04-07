@@ -30,6 +30,11 @@ def MAPE(pred, true):
 def MSPE(pred, true):
     return np.mean(np.square((true - pred) / true))
 
+def dirMSE(pred, true):
+    pred_diff = pred[:, 1:] - pred[:, :-1]
+    true_diff = true[:, 1:] - true[:, :-1]
+    return np.mean((pred_diff - true_diff) ** 2)
+
 
 def metric(pred, true):
     mae = MAE(pred, true)
@@ -38,5 +43,6 @@ def metric(pred, true):
     mape = MAPE(pred, true)
     mspe = MSPE(pred, true)
     corr = CORR(pred, true)
+    dirmse = dirMSE(pred, true)
 
-    return mae, mse, rmse, mape, mspe
+    return mae, mse, rmse, mape, mspe, dirmse
