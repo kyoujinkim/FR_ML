@@ -162,7 +162,7 @@ if __name__ == '__main__':
                     config=config,
                     model=model,
                     model_name=model_name,
-                    country=args.country,
+                    country=country,
                     dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
                     device=device,
                     loss_fn=baseline_loss,
