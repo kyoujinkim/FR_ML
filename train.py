@@ -101,14 +101,14 @@ class LongTermLearner():
             validation_loss = self.validation(self.val_dl)
             print(f"Epoch {epoch+1}, Validation Loss: {validation_loss:.4f}")
             # save learning history
-            f = open(f"./{save_path}/result_long_term_train.txt", 'a')
+            f = open(f"{save_path}/result_long_term_train.txt", 'a')
             f.write(f'{model_name}-{country}, Epoch {epoch+1}, Loss: {loss:.4f}, Validation Loss: {validation_loss:.4f}\n')
             f.close()
 
             early_stopping(validation_loss, self.model, f'{checkpath}')
             if early_stopping.early_stop:
                 print("Early stopping")
-                f = open(f"./{save_path}/result_long_term_train.txt", 'a')
+                f = open(f"{save_path}/result_long_term_train.txt", 'a')
                 f.write(f"{model_name}-{country}, Epoch {epoch - early_stopping.counter}, Loss: Early Stopped, Validation Loss: {early_stopping.best_score:.4f}\n")
                 f.close()
                 break
@@ -162,7 +162,7 @@ class LongTermLearner():
         mae, mse, rmse, mape, mspe = metric(pred, true)
         result_text = f'setting: {model_name} - {country}, mae: {mae:.4f}, mse: {mse:.4f}, rmse: {rmse:.4f}, mape: {mape:.4f}, mspe: {mspe:.4f}'
         print(result_text)
-        f = open(f"./{save_path}/result_long_term_forecast.txt", 'a')
+        f = open(f"{save_path}/result_long_term_forecast.txt", 'a')
         f.write(result_text + "\n")
         f.close()
 
