@@ -88,7 +88,6 @@ def run_model(config, model, model_name, country, dl_trn, dl_val, dl_tst,
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument('--country',    default='korea', help='data sub-folder name')
     p.add_argument('--config',     default='./config.ini')
     p.add_argument('--compare',    action='store_true',
                    help='also train/test PatchTST and iTransformer baselines')
@@ -109,63 +108,66 @@ if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Device: {device}")
 
-    dl_trn, dl_val, dl_tst = build_dataloaders(config, args.country, config.batch_size, args.data_apath, args.skip_col)
+    for country in ['korea', 'us', 'japan', 'europe']:
 
-    # ------------------------------------------------------------------
-    # Loss function for AMD-Trans
-    # ------------------------------------------------------------------
-    if args.loss == 'hybrid':
-        amd_loss = HybridLoss(alpha=0.7, beta=0.3)
-    elif args.loss == 'l1':
-        amd_loss = nn.L1Loss()
-    else:
-        amd_loss = nn.MSELoss()
+        dl_trn, dl_val, dl_tst = build_dataloaders(config, country, config.batch_size, args.data_apath, args.skip_col)
 
-    # ------------------------------------------------------------------
-    # AMD-Trans
-    # ------------------------------------------------------------------
-    amd_model = AMDTransModel(config).to(device).float()
-    param_count = sum(p.numel() for p in amd_model.parameters() if p.requires_grad)
-    print(f"\nAMD-Trans parameters: {param_count:,}")
+        # ------------------------------------------------------------------
+        # Loss function for AMD-Trans
+        # ------------------------------------------------------------------
+        if args.loss == 'hybrid':
+            amd_loss = HybridLoss(alpha=0.7, beta=0.3)
+        elif args.loss == 'l1':
+            amd_loss = nn.L1Loss()
+        else:
+            amd_loss = nn.MSELoss()
 
-    run_model(
-        config=config,
-        model=amd_model,
-        model_name='amd_trans',
-        country=args.country,
-        dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
-        device=device,
-        loss_fn=amd_loss,
-        epochs=config.train_epochs,
-        test_only=args.test_only,
-        cpath=args.check_apath,
-        spath=args.save_apath,
-    )
+        # ------------------------------------------------------------------
+        # AMD-Trans
+        # ------------------------------------------------------------------
+        for structure in ['rev-1-2-3', '1', '1-2', '1-3', '1-2-3', 'rev-1', 'rev-1-2', 'rev-1-3']:
+            amd_model = AMDTransModel(config, structure=structure).to(device).float()
+            param_count = sum(p.numel() for p in amd_model.parameters() if p.requires_grad)
+            print(f"\nAMD-Trans parameters: {param_count:,}, structure: {structure}")
 
-    # ------------------------------------------------------------------
-    # Baselines (optional)
-    # ------------------------------------------------------------------
-    if args.compare:
-        baselines = {
-            'patchTST':     PatchTSTModel(config),
-            'iTransformer': iTransformerModel(config),
-        }
-        baseline_loss = nn.L1Loss()
-
-        for model_name, model in baselines.items():
-            model = model.to(device).float()
             run_model(
                 config=config,
-                model=model,
-                model_name=model_name,
-                country=args.country,
+                model=amd_model,
+                model_name=f'amd_trans_{structure}',
+                country=country,
                 dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
                 device=device,
-                loss_fn=baseline_loss,
+                loss_fn=amd_loss,
                 epochs=config.train_epochs,
                 test_only=args.test_only,
                 cpath=args.check_apath,
                 spath=args.save_apath,
             )
 
-    print('\nDone. Results saved to logs/result_long_term_forecast.txt')
+        # ------------------------------------------------------------------
+        # Baselines (optional)
+        # ------------------------------------------------------------------
+        if args.compare:
+            baselines = {
+                'patchTST':     PatchTSTModel(config),
+                'iTransformer': iTransformerModel(config),
+            }
+            baseline_loss = nn.L1Loss()
+
+            for model_name, model in baselines.items():
+                model = model.to(device).float()
+                run_model(
+                    config=config,
+                    model=model,
+                    model_name=model_name,
+                    country=args.country,
+                    dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
+                    device=device,
+                    loss_fn=baseline_loss,
+                    epochs=config.train_epochs,
+                    test_only=args.test_only,
+                    cpath=args.check_apath,
+                    spath=args.save_apath,
+                )
+
+        print('\nDone. Results saved to logs/result_long_term_forecast.txt')
