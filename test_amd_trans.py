@@ -38,7 +38,7 @@ def build_dataloaders(config, country, batch_size, data_apath='data'):
         'parquet'
     )
     size = [config.seq_len, config.label_len, config.pred_len]
-    skip_col = [0, 1, 2, 3, 4]   # factor columns — skip std-scale normalisation
+    skip_col = [0, 2, 3, 4]   # factor columns — skip std-scale normalisation
 
     ds_trn = TS_dataset(p, fct=fct, size=size, std_scale=True, flag='train', skip_col=skip_col)
     ds_val = TS_dataset(p, fct=fct, size=size, flag='valid', skip_col=skip_col)
@@ -137,6 +137,8 @@ if __name__ == '__main__':
         loss_fn=amd_loss,
         epochs=config.train_epochs,
         test_only=args.test_only,
+        cpath=args.check_apath,
+        spath=args.save_apath,
     )
 
     # ------------------------------------------------------------------
