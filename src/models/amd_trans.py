@@ -213,7 +213,7 @@ class Model(nn.Module):
         if 'rev' in structure:
             x_enc = self.revin(x_enc, 'norm')
         else:
-            x_enc = x_enc
+            x_enc = self.revin(x_enc, 'norm')
 
         # Stage 1: Temporal patch attention (channel-independent)
         # [B, T, N] -> [B, N, T] -> patch_embedding -> [B*N, patch_num, d_model]
@@ -241,7 +241,11 @@ class Model(nn.Module):
             variate_tokens = enc_out.mean(dim=2)
             variate_out, _ = self.variate_encoder(variate_tokens)       # [B, N, d_model]
             # Broadcast variate context back and add as residual
-            enc_out = enc_out + variate_out.unsqueeze(2)                # [B, N, patch_num, d_model]
+            enc_out = enc_out + variate_out.unsqueeze(2)
+        else:
+            # If skipping variate-wise attention, still need to reshape for head
+            P = enc_out.shape[-2]
+            enc_out = enc_out.reshape(B, n_vars, P, enc_out.shape[-1])
 
         # Output: [B, N, d_model, patch_num] -> FlattenHead -> [B, N, pred_len]
         dec_out = self.head(enc_out.permute(0, 1, 3, 2))           # [B, N, pred_len]
