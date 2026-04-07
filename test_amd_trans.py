@@ -29,7 +29,7 @@ from train import LongTermLearner, read_config, load_factors
 # Helpers
 # ---------------------------------------------------------------------------
 
-def build_dataloaders(config, country, batch_size, data_apath='data'):
+def build_dataloaders(config, country, batch_size, data_apath='data', skip_col=None):
     r = pd.read_parquet(f'{data_apath}/{country}/returns.parquet')
     p = (r + 1).cumprod()
     fct = load_factors(
@@ -38,7 +38,7 @@ def build_dataloaders(config, country, batch_size, data_apath='data'):
         'parquet'
     )
     size = [config.seq_len, config.label_len, config.pred_len]
-    skip_col = [0, 2, 3, 4]   # factor columns — skip std-scale normalisation
+    skip_col = skip_col  # factor columns — skip std-scale normalisation
     train_pct = [0.6, 0.2, 0.2]
 
     ds_trn = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='train', skip_col=skip_col)
@@ -100,6 +100,7 @@ def parse_args():
     p.add_argument('--data_apath',   default=None, help='absolute path to config file (overrides --config)')
     p.add_argument('--check_apath',  default=None, help='absolute path to checkpoints (overrides default)')
     p.add_argument('--save_apath',   default=None, help='absolute path to logs (overrides default)')
+    p.add_argument('--skip_col',  nargs='*', type=int, default=[0, 2, 3, 4],)
     return p.parse_args()
 
 
@@ -109,7 +110,7 @@ if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Device: {device}")
 
-    dl_trn, dl_val, dl_tst = build_dataloaders(config, args.country, config.batch_size, args.data_apath)
+    dl_trn, dl_val, dl_tst = build_dataloaders(config, args.country, config.batch_size, args.data_apath, args.skip_col)
 
     # ------------------------------------------------------------------
     # Loss function for AMD-Trans
