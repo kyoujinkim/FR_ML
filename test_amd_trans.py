@@ -39,14 +39,15 @@ def build_dataloaders(config, country, batch_size, data_apath='data'):
     )
     size = [config.seq_len, config.label_len, config.pred_len]
     skip_col = [0, 2, 3, 4]   # factor columns — skip std-scale normalisation
+    train_pct = [0.6, 0.2, 0.2]
 
-    ds_trn = TS_dataset(p, fct=fct, size=size, std_scale=True, flag='train', skip_col=skip_col)
-    ds_val = TS_dataset(p, fct=fct, size=size, flag='valid', skip_col=skip_col)
-    ds_tst = TS_dataset(p, fct=fct, size=size, flag='test',  skip_col=skip_col)
+    ds_trn = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='train', skip_col=skip_col)
+    ds_val = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='valid', skip_col=skip_col)
+    ds_tst = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='test',  skip_col=skip_col)
 
-    dl_trn = DataLoader(ds_trn, batch_size=batch_size, shuffle=True,  drop_last=False)
-    dl_val = DataLoader(ds_val, batch_size=batch_size, shuffle=False, drop_last=False)
-    dl_tst = DataLoader(ds_tst, batch_size=batch_size, shuffle=False, drop_last=False)
+    dl_trn = DataLoader(ds_trn, batch_size=batch_size, shuffle=True)
+    dl_val = DataLoader(ds_val, batch_size=batch_size, shuffle=False)
+    dl_tst = DataLoader(ds_tst, batch_size=batch_size, shuffle=False)
 
     print(f"Data  —  train: {len(ds_trn):,}  val: {len(ds_val):,}  test: {len(ds_tst):,}")
     return dl_trn, dl_val, dl_tst
@@ -163,6 +164,8 @@ if __name__ == '__main__':
                 loss_fn=baseline_loss,
                 epochs=config.train_epochs,
                 test_only=args.test_only,
+                cpath=args.check_apath,
+                spath=args.save_apath,
             )
 
     print('\nDone. Results saved to logs/result_long_term_forecast.txt')
