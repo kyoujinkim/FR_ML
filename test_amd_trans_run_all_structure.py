@@ -108,6 +108,8 @@ if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Device: {device}")
 
+    torch.manual_seed(config.random_seed)
+
     for country in ['korea', 'us', 'japan', 'europe']:
 
         dl_trn, dl_val, dl_tst = build_dataloaders(config, country, config.batch_size, args.data_apath, args.skip_col)
