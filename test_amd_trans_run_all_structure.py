@@ -116,7 +116,7 @@ if __name__ == '__main__':
         # Loss function for AMD-Trans
         # ------------------------------------------------------------------
         if args.loss == 'hybrid':
-            amd_loss = HybridLoss(alpha=0.7, beta=0.3)
+            amd_loss = HybridLoss(alpha=config.hybrid_alpha, beta=config.hybrid_beta)
         elif args.loss == 'l1':
             amd_loss = nn.L1Loss()
         else:

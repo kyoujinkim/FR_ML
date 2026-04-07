@@ -159,8 +159,8 @@ class LongTermLearner():
         pred = pred.reshape(-1, pred.shape[-2], pred.shape[-1])
         true = true.reshape(-1, true.shape[-2], true.shape[-1])
 
-        mae, mse, rmse, mape, mspe, dirmse, cross_entropy = metric(pred, true)
-        result_text = f'setting: {model_name} - {country}, mae: {mae:.4f}, mse: {mse:.4f}, dir_mse: {dirmse:.5f}, cross_entropy: {cross_entropy:.4f}, rmse: {rmse:.4f}, mape: {mape:.4f}, mspe: {mspe:.4f}'
+        mae, mse, rmse, mape, mspe, dirmse = metric(pred, true)
+        result_text = f'setting: {model_name} - {country}, mae: {mae:.4f}, mse: {mse:.4f}, dir_mse: {dirmse:.5f}, rmse: {rmse:.4f}, mape: {mape:.4f}, mspe: {mspe:.4f}'
         print(result_text)
         f = open(f"{save_path}/result_long_term_forecast.txt", 'a')
         f.write(result_text + "\n")

@@ -35,9 +35,6 @@ def dirMSE(pred, true):
     true_diff = true[:, 1:] - true[:, :-1]
     return np.mean((pred_diff - true_diff) ** 2)
 
-def CE(pred, true):
-    pred = np.clip(pred, 1e-10, 1 - 1e-10)  # Avoid log(0)
-    return -np.mean(true * np.log(pred) + (1 - true) * np.log(1 - pred))
 
 def metric(pred, true):
     mae = MAE(pred, true)
@@ -45,8 +42,7 @@ def metric(pred, true):
     rmse = RMSE(pred, true)
     mape = MAPE(pred, true)
     mspe = MSPE(pred, true)
-    corr = CORR(pred, true)
+    #corr = CORR(pred, true)
     dirmse = dirMSE(pred, true)
-    cross_entropy = CE(pred, true)
 
-    return mae, mse, rmse, mape, mspe, dirmse, cross_entropy
+    return mae, mse, rmse, mape, mspe, dirmse
