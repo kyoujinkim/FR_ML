@@ -45,7 +45,7 @@ def build_dataloaders(config, country, batch_size, data_apath='data', skip_col=N
     ds_val = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='valid', skip_col=skip_col)
     ds_tst = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='test',  skip_col=skip_col)
 
-    dl_trn = DataLoader(ds_trn, batch_size=batch_size, shuffle=True, s)
+    dl_trn = DataLoader(ds_trn, batch_size=batch_size, shuffle=True)
     dl_val = DataLoader(ds_val, batch_size=batch_size, shuffle=False)
     dl_tst = DataLoader(ds_tst, batch_size=batch_size, shuffle=False)
 
