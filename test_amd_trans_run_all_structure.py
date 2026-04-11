@@ -98,7 +98,7 @@ def parse_args():
     p.add_argument('--data_apath',   default=None, help='absolute path to config file (overrides --config)')
     p.add_argument('--check_apath',  default=None, help='absolute path to checkpoints (overrides default)')
     p.add_argument('--save_apath',   default=None, help='absolute path to logs (overrides default)')
-    p.add_argument('--skip_col',  nargs='*', type=int, default=[0, 2, 3, 4],)
+    p.add_argument('--skip_col',  nargs='*', type=int, default=[0, 1, 2, 3, 4],)
     return p.parse_args()
 
 
