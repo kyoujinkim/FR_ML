@@ -23,6 +23,7 @@ from src.models.patchTST import Model as PatchTSTModel
 from src.models.iTransformer import Model as iTransformerModel
 from src.models.crossformer import Model as CrossformerModel
 from src.models.twinformer import Model as TwinformerModel
+from src.models.timeXer import Model as TimeXerModel
 from src.utils.metrics import metric
 from train import LongTermLearner, read_config, load_factors
 
@@ -132,7 +133,7 @@ if __name__ == '__main__':
         # AMD-Trans
         # ------------------------------------------------------------------
         if not args.only_compare:
-            for structure in ['rev-1-2-3']:#, '1', '1-2', '1-3', '1-2-3', 'rev-1', 'rev-1-2', 'rev-1-3']:
+            for structure in ['rev-1-2e-3', 'rev-1-2-3', '1', '1-2e', '1-2', '1-3', '1-2e-3', '1-2-3', 'rev-1', 'rev-1-2e', 'rev-1-2', 'rev-1-3']:
                 amd_model = AMDTransModel(config, structure=structure).to(device).float()
                 param_count = sum(p.numel() for p in amd_model.parameters() if p.requires_grad)
                 print(f"\nAMD-Trans parameters: {param_count:,}, structure: {structure}")
@@ -160,8 +161,9 @@ if __name__ == '__main__':
                 'iTransformer': iTransformerModel(config),
                 'crossformer':   CrossformerModel(config),
                 'twinformer':    TwinformerModel(config),
+                'timexer':       TimeXerModel(config),
             }
-            baseline_loss = nn.MSELoss()
+            baseline_loss = nn.L1Loss()
 
             for model_name, model in baselines.items():
                 model = model.to(device).float()
