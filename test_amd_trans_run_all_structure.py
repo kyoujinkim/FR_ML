@@ -91,7 +91,8 @@ def run_model(config, model, model_name, country, dl_trn, dl_val, dl_tst,
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--config',     default='./config.ini')
-    p.add_argument('--only_compare', default=False, type=bool, help='compare baselines only')
+    p.add_argument('--only_compare', action='store_true',
+                   help='compare baselines only')
     p.add_argument('--compare',    action='store_true',
                    help='also train/test PatchTST and iTransformer baselines')
     p.add_argument('--test-only',  action='store_true',
