@@ -54,6 +54,18 @@ class HybridLoss(nn.Module):
         dir_loss = torch.mean(torch.relu(-pred_diff * true_diff))
         return self.alpha * mae_loss + self.beta * dir_loss
 
+    def forward(self, pred, true):
+        mae_loss = self.mae(pred, true)
+
+        # 총 변화량
+        p_diff = pred[:, -1, :] - pred[:, 0, :]
+        t_diff = true[:, -1, :] - true[:, 0, :]
+
+        # tanh를 씌워 스케일을 1 근처로 압축 (Soft-sign)
+        # 값이 클수록 1 혹은 -1에 수렴하여 "방향" 정보만 남게 됨
+        dir_loss = torch.mean(torch.relu(-torch.tanh(p_diff) * torch.tanh(t_diff)))
+
+        return self.alpha * mae_loss + self.beta * dir_loss
 
 class TemporalEntropyEncoder(nn.Module):
     def __init__(self, n_vars, d_mark, d_model):
