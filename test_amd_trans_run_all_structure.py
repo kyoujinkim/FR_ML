@@ -21,6 +21,8 @@ from src.dataset import TS_dataset
 from src.models.amd_trans import Model as AMDTransModel, HybridLoss
 from src.models.patchTST import Model as PatchTSTModel
 from src.models.iTransformer import Model as iTransformerModel
+from src.models.crossformer import Model as CrossformerModel
+from src.models.twinformer import Model as TwinformerModel
 from src.utils.metrics import metric
 from train import LongTermLearner, read_config, load_factors
 
@@ -89,6 +91,7 @@ def run_model(config, model, model_name, country, dl_trn, dl_val, dl_tst,
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--config',     default='./config.ini')
+    p.add_argument('--only_compare', default=False, type=bool, help='compare baselines only')
     p.add_argument('--compare',    action='store_true',
                    help='also train/test PatchTST and iTransformer baselines')
     p.add_argument('--test-only',  action='store_true',
@@ -127,24 +130,25 @@ if __name__ == '__main__':
         # ------------------------------------------------------------------
         # AMD-Trans
         # ------------------------------------------------------------------
-        for structure in ['rev-1-2-3']:#, '1', '1-2', '1-3', '1-2-3', 'rev-1', 'rev-1-2', 'rev-1-3']:
-            amd_model = AMDTransModel(config, structure=structure).to(device).float()
-            param_count = sum(p.numel() for p in amd_model.parameters() if p.requires_grad)
-            print(f"\nAMD-Trans parameters: {param_count:,}, structure: {structure}")
+        if not args.only_compare:
+            for structure in ['rev-1-2-3']:#, '1', '1-2', '1-3', '1-2-3', 'rev-1', 'rev-1-2', 'rev-1-3']:
+                amd_model = AMDTransModel(config, structure=structure).to(device).float()
+                param_count = sum(p.numel() for p in amd_model.parameters() if p.requires_grad)
+                print(f"\nAMD-Trans parameters: {param_count:,}, structure: {structure}")
 
-            run_model(
-                config=config,
-                model=amd_model,
-                model_name=f'amd_trans_{structure}',
-                country=country,
-                dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
-                device=device,
-                loss_fn=amd_loss,
-                epochs=config.train_epochs,
-                test_only=args.test_only,
-                cpath=args.check_apath,
-                spath=args.save_apath,
-            )
+                run_model(
+                    config=config,
+                    model=amd_model,
+                    model_name=f'amd_trans_{structure}',
+                    country=country,
+                    dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
+                    device=device,
+                    loss_fn=amd_loss,
+                    epochs=config.train_epochs,
+                    test_only=args.test_only,
+                    cpath=args.check_apath,
+                    spath=args.save_apath,
+                )
 
         # ------------------------------------------------------------------
         # Baselines (optional)
@@ -153,8 +157,10 @@ if __name__ == '__main__':
             baselines = {
                 'patchTST':     PatchTSTModel(config),
                 'iTransformer': iTransformerModel(config),
+                'crossformer':   CrossformerModel(config),
+                'twinformer':    TwinformerModel(config),
             }
-            baseline_loss = nn.L1Loss()
+            baseline_loss = nn.MSELoss()
 
             for model_name, model in baselines.items():
                 model = model.to(device).float()
