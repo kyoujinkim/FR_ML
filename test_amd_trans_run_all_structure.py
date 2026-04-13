@@ -133,7 +133,7 @@ if __name__ == '__main__':
         # AMD-Trans
         # ------------------------------------------------------------------
         if not args.only_compare:
-            for structure in ['rev-1-2e-3', 'rev-1-2-3', '1', '1-2e', '1-2', '1-3', '1-2e-3', '1-2-3', 'rev-1', 'rev-1-2e', 'rev-1-2', 'rev-1-3']:
+            for structure in ['rev-1-2-3', '1', '1-2', '1-3', '1-2-3', 'rev-1', 'rev-1-2', 'rev-1-3']:
                 amd_model = AMDTransModel(config, structure=structure).to(device).float()
                 param_count = sum(p.numel() for p in amd_model.parameters() if p.requires_grad)
                 print(f"\nAMD-Trans parameters: {param_count:,}, structure: {structure}")
@@ -157,8 +157,8 @@ if __name__ == '__main__':
         # ------------------------------------------------------------------
         if args.compare:
             baselines = {
-                'patchTST':     PatchTSTModel(config),
-                'iTransformer': iTransformerModel(config),
+                #'patchTST':     PatchTSTModel(config),
+                #'iTransformer': iTransformerModel(config),
                 'crossformer':   CrossformerModel(config),
                 'twinformer':    TwinformerModel(config),
                 'timexer':       TimeXerModel(config),
