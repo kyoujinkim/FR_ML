@@ -5,9 +5,9 @@ Trains AMD-Trans on financial factor data and evaluates against
 PatchTST and iTransformer baselines.  Results are written to logs/.
 
 Usage:
-    python test_amd_trans.py                  # AMD-Trans only
-    python test_amd_trans.py --compare        # + PatchTST & iTransformer baselines
-    python test_amd_trans.py --test-only      # skip training, load saved checkpoint
+    python test_profit.py                  # AMD-Trans only
+    python test_profit.py --compare        # + PatchTST & iTransformer baselines
+    python test_profit.py --test-only      # skip training, load saved checkpoint
 """
 import argparse
 import os
@@ -18,7 +18,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from src.dataset import TS_dataset
-from src.models.amd_trans import Model as AMDTransModel, HybridLoss
+from src.models.profit import Model as ProfitModel, HybridLoss
 from src.models.patchTST import Model as PatchTSTModel
 from src.models.iTransformer import Model as iTransformerModel
 from src.models.crossformer import Model as CrossformerModel
@@ -133,8 +133,8 @@ if __name__ == '__main__':
         # AMD-Trans
         # ------------------------------------------------------------------
         if not args.only_compare:
-            for structure in ['1', '1-2', '1-3', '1-2-3', 'rev-1', 'rev-1-2', 'rev-1-3']:#['rev-1-2-3', '1', '1-2', '1-3', '1-2-3', 'rev-1', 'rev-1-2', 'rev-1-3']:
-                amd_model = AMDTransModel(config, structure=structure).to(device).float()
+            for structure in ['rev-1-2-3']:#, '1', '1-2', '1-3', '1-2-3', 'rev-1', 'rev-1-2', 'rev-1-3']:
+                amd_model = ProfitModel(config, structure=structure).to(device).float()
                 param_count = sum(p.numel() for p in amd_model.parameters() if p.requires_grad)
                 print(f"\nAMD-Trans parameters: {param_count:,}, structure: {structure}")
 

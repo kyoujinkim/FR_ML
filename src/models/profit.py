@@ -96,7 +96,7 @@ class TemporalEntropyEncoder(nn.Module):
 
 class Model(nn.Module):
     """
-    Global-Aware AMD-Trans: Adaptive Multi-Dimensional Transformer for Asset Pricing
+    PROFIT: Patch-RevIn Oriented Finance Integrated Transformer
 
     Architecture (follows readme.md spec):
         1. RevIN  — per-variate reversible instance normalization
