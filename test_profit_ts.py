@@ -39,7 +39,7 @@ def build_dataloaders(config, country, batch_size, data_apath='data', skip_col=N
     )
     size = [config.seq_len, config.label_len, config.pred_len]
     skip_col = skip_col  # factor columns — skip std-scale normalisation
-    train_pct = [1.0, 1.0, 1.0]#[0.6, 0.2, 0.2]
+    train_pct = [1.0, .0, .0]#[0.6, 0.2, 0.2]
 
     #if year!=-1:
     #    start_date = f'{year-1}-01-01'
@@ -117,7 +117,7 @@ if __name__ == '__main__':
             run_model(
                 config=config,
                 model=amd_model,
-                model_name='amd_trans_rev-1-2-3',
+                model_name='profit',
                 country=country,
                 dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
                 device=device,
