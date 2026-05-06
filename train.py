@@ -127,7 +127,7 @@ class LongTermLearner():
 
         self.model.eval()
 
-        self.model.load_state_dict(torch.load(f'{checkpath}/checkpoint.pth', map_location=torch.device('cpu')))
+        self.model.load_state_dict(torch.load(f'{checkpath}/checkpoint.pth')) #, map_location=torch.device('cpu')))
 
         with torch.no_grad():
             pred = []
