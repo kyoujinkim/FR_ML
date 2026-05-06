@@ -119,7 +119,7 @@ class LongTermLearner():
 
         return self.model
 
-    def test(self, model_name, country, checkpath:str='', save_path:str=''):
+    def test(self, model_name, country, checkpath:str='', save_path:str='', save_result=False, year=-1):
         if not os.path.exists(f'{checkpath}'):
             os.makedirs(f'{checkpath}')
         if not os.path.exists(f'{save_path}'):
@@ -160,7 +160,7 @@ class LongTermLearner():
         true = true.reshape(-1, true.shape[-2], true.shape[-1])
 
         mae, mse, rmse, mape, mspe, dirmse = metric(pred, true)
-        result_text = f'setting: {model_name} - {country}, mae: {mae:.4f}, mse: {mse:.4f}, dir_mse: {dirmse:.5f}, rmse: {rmse:.4f}, mape: {mape:.4f}, mspe: {mspe:.4f}'
+        result_text = f'setting {year}: {model_name} - {country}, mae: {mae:.4f}, mse: {mse:.4f}, dir_mse: {dirmse:.5f}, rmse: {rmse:.4f}, mape: {mape:.4f}, mspe: {mspe:.4f}'
         print(result_text)
         f = open(f"{save_path}/result_long_term_forecast.txt", 'a')
         f.write(result_text + "\n")

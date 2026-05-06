@@ -29,7 +29,7 @@ from train import LongTermLearner, read_config, load_factors
 # Helpers
 # ---------------------------------------------------------------------------
 
-def build_dataloaders(config, country, batch_size, data_apath='data', skip_col=None):
+def build_dataloaders(config, country, batch_size, data_apath='data', skip_col=None, year:int=-1):
     r = pd.read_parquet(f'{data_apath}/{country}/returns.parquet')
     p = (r + 1).cumprod()
     fct = load_factors(
@@ -40,6 +40,12 @@ def build_dataloaders(config, country, batch_size, data_apath='data', skip_col=N
     size = [config.seq_len, config.label_len, config.pred_len]
     skip_col = skip_col  # factor columns — skip std-scale normalisation
     train_pct = [0.6, 0.2, 0.2]
+
+    if year!=-1:
+        start_date = f'{year-1}-01-01'
+        end_date = f'{year}-12-31'
+        p = p.loc[start_date:end_date]
+        fct = fct.loc[start_date:end_date]
 
     ds_trn = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='train', skip_col=skip_col)
     ds_val = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='valid', skip_col=skip_col)
@@ -54,7 +60,7 @@ def build_dataloaders(config, country, batch_size, data_apath='data', skip_col=N
 
 
 def run_model(config, model, model_name, country, dl_trn, dl_val, dl_tst,
-              device, loss_fn, epochs, test_only=False, cpath='checkpoints', spath='logs'):
+              device, loss_fn, cpath='checkpoints', spath='logs', year=-1):
     checkpath = f'{cpath}/{model_name}_{country}'
     save_path = spath
     os.makedirs(save_path, exist_ok=True)
@@ -62,24 +68,13 @@ def run_model(config, model, model_name, country, dl_trn, dl_val, dl_tst,
     opt = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     learner = LongTermLearner(config, model, dl_trn, dl_val, dl_tst, opt, loss_fn, device)
 
-    if not test_only:
-        print(f"\n{'='*60}")
-        print(f"  Training  {model_name}  [{country}]")
-        print(f"{'='*60}")
-        learner.fit(
-            model_name=model_name,
-            country=country,
-            epochs=epochs,
-            checkpath=checkpath,
-            save_path=save_path,
-        )
-
     print(f"\n  Evaluating  {model_name}  ...")
     learner.test(
         model_name=model_name,
         country=country,
         checkpath=checkpath,
         save_path=save_path,
+        year=year,
     )
 
 # ---------------------------------------------------------------------------
@@ -90,16 +85,10 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--country',    default='korea', help='data sub-folder name')
     p.add_argument('--config',     default='./config.ini')
-    p.add_argument('--compare',    action='store_true',
-                   help='also train/test PatchTST and iTransformer baselines')
-    p.add_argument('--test-only',  action='store_true',
-                   help='skip training; load existing checkpoints')
-    p.add_argument('--loss',       default='l1', choices=['l1', 'mse'],
-                   help='loss function for AMD-Trans')
     p.add_argument('--data_apath',   default='./data', help='absolute path to config file (overrides --config)')
     p.add_argument('--check_apath',  default='./checkpoints', help='absolute path to checkpoints (overrides default)')
     p.add_argument('--save_apath',   default='./logs', help='absolute path to logs (overrides default)')
-    p.add_argument('--skip_col',  nargs='*', type=int, default=[0, 2, 3, 4],)
+    p.add_argument('--skip_col',  nargs='*', type=int, default=[0, 1, 2, 3, 4],)
     return p.parse_args()
 
 
@@ -111,33 +100,28 @@ if __name__ == '__main__':
 
     torch.manual_seed(config.random_seed)
 
-    dl_trn, dl_val, dl_tst = build_dataloaders(config, args.country, config.batch_size, args.data_apath, args.skip_col)
+    for year in range(2018, 2025):
+        print(f"\n{'='*60}")
+        print(f"  Year: {year}  ")
+        print(f"{'='*60}")
 
-    # ------------------------------------------------------------------
-    # Loss function for AMD-Trans
-    # ------------------------------------------------------------------
-    if args.loss == 'l1':
+        dl_trn, dl_val, dl_tst = build_dataloaders(config, args.country, config.batch_size, args.data_apath, args.skip_col, year)
+
         amd_loss = nn.L1Loss()
-    else:
-        amd_loss = nn.MSELoss()
 
-    # ------------------------------------------------------------------
-    # AMD-Trans
-    # ------------------------------------------------------------------
-    amd_model = ProfitModel(config).to(device).float()
-    param_count = sum(p.numel() for p in amd_model.parameters() if p.requires_grad)
-    print(f"\nAMD-Trans parameters: {param_count:,}")
+        amd_model = ProfitModel(config).to(device).float()
+        param_count = sum(p.numel() for p in amd_model.parameters() if p.requires_grad)
+        print(f"\nAMD-Trans parameters: {param_count:,}")
 
-    run_model(
-        config=config,
-        model=amd_model,
-        model_name='amd_trans_rev-1-2-3',
-        country=args.country,
-        dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
-        device=device,
-        loss_fn=amd_loss,
-        epochs=config.train_epochs,
-        test_only=args.test_only,
-        cpath=args.check_apath,
-        spath=args.save_apath,
-    )
+        run_model(
+            config=config,
+            model=amd_model,
+            model_name='amd_trans_rev-1-2-3',
+            country=args.country,
+            dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
+            device=device,
+            loss_fn=amd_loss,
+            cpath=args.check_apath,
+            spath=args.save_apath,
+            year=year,
+        )
