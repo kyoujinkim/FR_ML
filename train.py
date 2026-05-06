@@ -119,7 +119,7 @@ class LongTermLearner():
 
         return self.model
 
-    def test(self, model_name, country, checkpath:str='', save_path:str='', save_result=False, year=-1):
+    def test(self, model_name, country, checkpath:str='', save_path:str='', year=-1):
         if not os.path.exists(f'{checkpath}'):
             os.makedirs(f'{checkpath}')
         if not os.path.exists(f'{save_path}'):

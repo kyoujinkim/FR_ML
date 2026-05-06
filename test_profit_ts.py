@@ -39,23 +39,23 @@ def build_dataloaders(config, country, batch_size, data_apath='data', skip_col=N
     )
     size = [config.seq_len, config.label_len, config.pred_len]
     skip_col = skip_col  # factor columns — skip std-scale normalisation
-    train_pct = [0, 0, 1.0]#[0.6, 0.2, 0.2]
+    train_pct = [1.0, 1.0, 1.0]#[0.6, 0.2, 0.2]
 
     #if year!=-1:
     #    start_date = f'{year-1}-01-01'
     #    end_date = f'{year}-12-31'
     #    p = p.loc[start_date:end_date]
 
-    ds_trn = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='train', skip_col=skip_col)
-    ds_val = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='valid', skip_col=skip_col)
-    ds_tst = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='test',  skip_col=skip_col)
+    ds = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='train', skip_col=skip_col)
+    #ds_val = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='valid', skip_col=skip_col)
+    #ds_tst = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='test',  skip_col=skip_col)
 
-    dl_trn = DataLoader(ds_trn, batch_size=batch_size, shuffle=True)
-    dl_val = DataLoader(ds_val, batch_size=batch_size, shuffle=False)
-    dl_tst = DataLoader(ds_tst, batch_size=batch_size, shuffle=False)
+    dl = DataLoader(ds, batch_size=batch_size, shuffle=False)
+    #dl_val = DataLoader(ds_val, batch_size=batch_size, shuffle=False)
+    #dl_tst = DataLoader(ds_tst, batch_size=batch_size, shuffle=False)
 
-    print(f"Data  —  train: {len(ds_trn):,}  val: {len(ds_val):,}  test: {len(ds_tst):,}")
-    return dl_trn, dl_val, dl_tst
+    print(f"Data  — test: {len(ds):,}")
+    return dl, dl, dl
 
 
 def run_model(config, model, model_name, country, dl_trn, dl_val, dl_tst,
