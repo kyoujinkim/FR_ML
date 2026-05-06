@@ -18,12 +18,15 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from src.dataset import TS_dataset
-from src.models.profit import Model as ProfitModel, HybridLoss
+from src.models.profit import Model as ProfitModel
 from src.models.patchTST import Model as PatchTSTModel
 from src.models.iTransformer import Model as iTransformerModel
 from src.models.crossformer import Model as CrossformerModel
 from src.models.twinformer import Model as TwinformerModel
 from src.models.timeXer import Model as TimeXerModel
+from src.models.autoformer import Model as AutoformerModel
+from src.models.informer import Model as InformerModel
+from src.models.transformers import Model as TransformerModel
 from src.utils.metrics import metric
 from train import LongTermLearner, read_config, load_factors
 
@@ -98,7 +101,7 @@ def parse_args():
                    help='also train/test PatchTST and iTransformer baselines')
     p.add_argument('--test-only',  action='store_true',
                    help='skip training; load existing checkpoints')
-    p.add_argument('--loss',       default='hybrid', choices=['hybrid', 'l1', 'mse'],
+    p.add_argument('--loss',       default='hybrid', choices=['l1', 'mse'],
                    help='loss function for AMD-Trans')
     p.add_argument('--data_apath',   default=None, help='absolute path to config file (overrides --config)')
     p.add_argument('--check_apath',  default=None, help='absolute path to checkpoints (overrides default)')
@@ -122,9 +125,7 @@ if __name__ == '__main__':
         # ------------------------------------------------------------------
         # Loss function for AMD-Trans
         # ------------------------------------------------------------------
-        if args.loss == 'hybrid':
-            amd_loss = HybridLoss(alpha=config.hybrid_alpha, beta=config.hybrid_beta)
-        elif args.loss == 'l1':
+        if args.loss == 'l1':
             amd_loss = nn.L1Loss()
         else:
             amd_loss = nn.MSELoss()
@@ -157,11 +158,14 @@ if __name__ == '__main__':
         # ------------------------------------------------------------------
         if args.compare:
             baselines = {
+                'informer':     InformerModel(config),
+                'autoformer':   AutoformerModel(config),
+                'transformer':  TransformerModel(config),
                 #'patchTST':     PatchTSTModel(config),
                 #'iTransformer': iTransformerModel(config),
-                'crossformer':   CrossformerModel(config),
-                'twinformer':    TwinformerModel(config),
-                'timexer':       TimeXerModel(config),
+                #'crossformer':   CrossformerModel(config),
+                #'twinformer':    TwinformerModel(config),
+                #'timexer':       TimeXerModel(config),
             }
             baseline_loss = nn.L1Loss()
 

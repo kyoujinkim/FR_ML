@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 from src.layers.Transformer_EncDec import Encoder, EncoderLayer
 from src.layers.SelfAttention_Family import FullAttention, AttentionLayer
@@ -31,68 +30,6 @@ class FlattenHead(nn.Module):
         x = self.dropout(x)
         return x
 
-
-class HybridLoss(nn.Module):
-    """
-    Hybrid Loss = alpha * MSE + beta * Directional Loss
-
-    MSE minimizes numerical error; DirectionalLoss penalizes
-    predictions that move in the wrong direction vs. the target.
-    """
-    def __init__(self, alpha=0.7, beta=0.3):
-        super().__init__()
-        self.alpha = alpha
-        self.beta = beta
-        self.mae = nn.L1Loss()
-
-    def forward(self, pred, true):
-        mae_loss = self.mae(pred, true)
-        # Differentiable directional penalty: relu(-pred_diff * true_diff)
-        # is > 0 only when signs disagree
-        pred_diff = pred[:, 1:, :] - pred[:, :-1, :]
-        true_diff = true[:, 1:, :] - true[:, :-1, :]
-        dir_loss = torch.mean(torch.relu(-pred_diff * true_diff))
-        return self.alpha * mae_loss + self.beta * dir_loss
-
-    def forward(self, pred, true):
-        mae_loss = self.mae(pred, true)
-
-        # 총 변화량
-        p_diff = pred[:, -1, :] - pred[:, 0, :]
-        t_diff = true[:, -1, :] - true[:, 0, :]
-
-        # tanh를 씌워 스케일을 1 근처로 압축 (Soft-sign)
-        # 값이 클수록 1 혹은 -1에 수렴하여 "방향" 정보만 남게 됨
-        dir_loss = torch.mean(torch.relu(-torch.tanh(p_diff) * torch.tanh(t_diff)))
-
-        return self.alpha * mae_loss + self.beta * dir_loss
-
-class TemporalEntropyEncoder(nn.Module):
-    def __init__(self, n_vars, d_mark, d_model):
-        super(TemporalEntropyEncoder, self).__init__()
-        # 엔트로피의 민감도를 조절하는 학습 가능한 파라미터 (Temperature Scaling 유사)
-        self.tau = nn.Parameter(torch.ones(1, 1, n_vars))
-        # 차원을 d_model로 맞춰주는 투영 층
-        self.projection = nn.Linear(d_mark + 1, d_model)
-
-    def forward(self, x_enc, x_mark_enc):
-        # 1. Temporal Difference 계산 (B, T, N)
-        # 맨 앞 시점의 변화량을 0으로 가정하여 padding 후 diff 계산
-        x_prev = torch.roll(x_enc, shifts=1, dims=1)
-        x_prev[:, 0, :] = x_enc[:, 0, :]  # 첫 시점은 자기 자신과 비교
-
-        diff = torch.abs(x_enc - x_prev)  # [B, T, N]
-
-        # 2. Entropy 수치화 (데이터가 안 변할수록 1에 가까워짐)
-        # self.tau를 통해 모델이 '정적인 상태'의 기준을 학습합니다.
-        entropy = torch.exp(-diff * torch.abs(self.tau)).mean(dim=-1, keepdim=True)  # [B, T, 1]
-
-        # 3. 시간 정보(x_mark_enc)와 결합
-        # x_mark_enc: [B, T, D_mark]
-        combined = torch.cat([x_mark_enc, entropy], dim=-1)  # [B, T, D_mark + 1]
-
-        # 4. 모델의 hidden dimension으로 투영
-        return self.projection(combined)
 
 class Model(nn.Module):
     """
@@ -150,7 +87,6 @@ class Model(nn.Module):
         #          x_mark encodes (month, day) → 2 features → project to d_model
         #          or x_mark encodes (month, day) + temporal entropy → 3 features → project to d_model
         # ------------------------------------------------------------------
-        self.temproal_entropy_encoder = TemporalEntropyEncoder(configs.enc_in, 2, configs.d_model)
         self.global_proj = nn.Linear(2, configs.d_model)
         self.cross_attn = AttentionLayer(
             FullAttention(False, configs.factor,
@@ -186,7 +122,7 @@ class Model(nn.Module):
         self.head = FlattenHead(configs.enc_in, head_nf, configs.pred_len,
                                 head_dropout=configs.dropout)
 
-    def forecast_notused(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
+    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, T, N = x_enc.shape
 
         # Stage 0: RevIN normalization
@@ -199,7 +135,7 @@ class Model(nn.Module):
 
         # Stage 2: Cross-attention with global temporal context
         # x_mark: [B, T, 2] -> [B, T, d_model] -> [B*N, T, d_model]
-        global_ctx = self.temproal_entropy_encoder(x_enc, x_mark_enc)  # [B, T, d_model]
+        global_ctx = self.global_proj(x_mark_enc.float()) # [B, T, d_model]
         global_ctx = (global_ctx
                       .unsqueeze(1)
                       .expand(-1, n_vars, -1, -1)
@@ -228,7 +164,7 @@ class Model(nn.Module):
         dec_out = self.revin(dec_out, 'denorm')
         return dec_out
 
-    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
+    def forecast_notused(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         """
         select which stages to execute for ablation:
             - 'rev-1-2e-3': full model with all stages
@@ -264,11 +200,7 @@ class Model(nn.Module):
         # [B, T, N] -> [B, N, T] -> patch_embedding -> [B*N, patch_num, d_model]
         enc_out, n_vars = self.patch_embedding(x_enc.permute(0, 2, 1))
         enc_out, _ = self.temporal_encoder(enc_out)  # [B*N, patch_num, d_model]
-        if '2e' in structure:
-            # add temporal entropy
-            global_ctx = self.temproal_entropy_encoder(x_enc, x_mark_enc)  # [B, T, d_model]
-        else:
-            global_ctx = self.global_proj(x_mark_enc.float()) # [B, T, d_model]
+        global_ctx = self.global_proj(x_mark_enc.float()) # [B, T, d_model]
 
         if '2' in structure:
             # Stage 2: Cross-attention with global temporal context
