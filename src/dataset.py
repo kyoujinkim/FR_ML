@@ -68,7 +68,7 @@ class TS_dataset(Dataset):
                 d_list = []
                 for f in fct:
                     try:
-                        f_partial = f.loc[:p.index[-1], p.name].reindex(p.index).fillna(method='ffill').fillna(0)
+                        f_partial = f.loc[:p.index[-1], p.name].reindex(p.index).ffill().fillna(0)
                     except:
                         f_partial = pd.Series([0]*len(p), index=p.index, name=p.name)
                     d_list.append(f_partial)
