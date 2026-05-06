@@ -39,7 +39,7 @@ def build_dataloaders(config, country, batch_size, data_apath='data', skip_col=N
     )
     size = [config.seq_len, config.label_len, config.pred_len]
     skip_col = skip_col  # factor columns — skip std-scale normalisation
-    train_pct = [0.6, 0.2, 0.2]
+    train_pct = [0, 0, 1.0]#[0.6, 0.2, 0.2]
 
     #if year!=-1:
     #    start_date = f'{year-1}-01-01'
@@ -101,7 +101,7 @@ if __name__ == '__main__':
 
     for country in ['korea', 'us', 'japan', 'europe']:
 
-        for year in range(2018, 2025):
+        for year in range(2019, 2026):
             print(f"\n{'='*60}")
             print(f"  Year: {year}  ")
             print(f"{'='*60}")
