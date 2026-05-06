@@ -134,15 +134,15 @@ if __name__ == '__main__':
         # AMD-Trans
         # ------------------------------------------------------------------
         if not args.only_compare:
-            for structure in ['rev-1-2-3']:#, '1', '1-2', '1-3', '1-2-3', 'rev-1', 'rev-1-2', 'rev-1-3']:
+            for structure in ['rev-1-2-3', '1', '1-2', '1-3', '1-2-3', 'rev-1', 'rev-1-2', 'rev-1-3']:
                 amd_model = ProfitModel(config, structure=structure).to(device).float()
                 param_count = sum(p.numel() for p in amd_model.parameters() if p.requires_grad)
-                print(f"\nAMD-Trans parameters: {param_count:,}, structure: {structure}")
+                print(f"\nPROFIT parameters: {param_count:,}, structure: {structure}")
 
                 run_model(
                     config=config,
                     model=amd_model,
-                    model_name=f'amd_trans_{structure}',
+                    model_name=f'profit_{structure}',
                     country=country,
                     dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
                     device=device,
@@ -158,14 +158,14 @@ if __name__ == '__main__':
         # ------------------------------------------------------------------
         if args.compare:
             baselines = {
+                'transformer':  TransformerModel(config),
                 'informer':     InformerModel(config),
                 'autoformer':   AutoformerModel(config),
-                'transformer':  TransformerModel(config),
-                #'patchTST':     PatchTSTModel(config),
-                #'iTransformer': iTransformerModel(config),
-                #'crossformer':   CrossformerModel(config),
-                #'twinformer':    TwinformerModel(config),
-                #'timexer':       TimeXerModel(config),
+                'patchTST':     PatchTSTModel(config),
+                'iTransformer': iTransformerModel(config),
+                'crossformer':   CrossformerModel(config),
+                'twinformer':    TwinformerModel(config),
+                'timexer':       TimeXerModel(config),
             }
             baseline_loss = nn.L1Loss()
 
