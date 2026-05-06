@@ -124,14 +124,14 @@ if __name__ == '__main__':
     # ------------------------------------------------------------------
     # AMD-Trans
     # ------------------------------------------------------------------
-    amd_model = ProfitModel(config).to(device).float()
-    param_count = sum(p.numel() for p in amd_model.parameters() if p.requires_grad)
+    profit_model = ProfitModel(config).to(device).float()
+    param_count = sum(p.numel() for p in profit_model.parameters() if p.requires_grad)
     print(f"\nAMD-Trans parameters: {param_count:,}")
 
     run_model(
         config=config,
-        model=amd_model,
-        model_name='amd_trans_rev-1-2-3',
+        model=profit_model,
+        model_name='profit',
         country=args.country,
         dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
         device=device,

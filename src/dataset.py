@@ -23,8 +23,8 @@ class TS_dataset(Dataset):
         assert flag in ['train', 'test', 'valid']
         type_map = {
             'train': 0,
-            'test': 1,
-            'valid': 2
+            'valid': 1,
+            'test': 2
         }
         self.type = type_map[flag]
         self.scaler = StandardScaler()
@@ -55,6 +55,7 @@ class TS_dataset(Dataset):
         brdst = int(brdst_l[self.type])
         brded = int(brded_l[self.type])
         price = price.iloc[brdst:brded]
+        print(price.index[0], price.index[-1], price.shape)
 
         # make data pair
         data = []
