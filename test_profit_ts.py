@@ -100,28 +100,30 @@ if __name__ == '__main__':
 
     torch.manual_seed(config.random_seed)
 
-    for year in range(2018, 2025):
-        print(f"\n{'='*60}")
-        print(f"  Year: {year}  ")
-        print(f"{'='*60}")
+    for country in ['korea', 'us', 'japan', 'europe']:
 
-        dl_trn, dl_val, dl_tst = build_dataloaders(config, args.country, config.batch_size, args.data_apath, args.skip_col, year)
+        for year in range(2018, 2025):
+            print(f"\n{'='*60}")
+            print(f"  Year: {year}  ")
+            print(f"{'='*60}")
 
-        amd_loss = nn.L1Loss()
+            dl_trn, dl_val, dl_tst = build_dataloaders(config, country, config.batch_size, args.data_apath, args.skip_col, year)
 
-        amd_model = ProfitModel(config).to(device).float()
-        param_count = sum(p.numel() for p in amd_model.parameters() if p.requires_grad)
-        print(f"\nAMD-Trans parameters: {param_count:,}")
+            amd_loss = nn.L1Loss()
 
-        run_model(
-            config=config,
-            model=amd_model,
-            model_name='amd_trans_rev-1-2-3',
-            country=args.country,
-            dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
-            device=device,
-            loss_fn=amd_loss,
-            cpath=args.check_apath,
-            spath=args.save_apath,
-            year=year,
-        )
+            amd_model = ProfitModel(config).to(device).float()
+            param_count = sum(p.numel() for p in amd_model.parameters() if p.requires_grad)
+            print(f"\nAMD-Trans parameters: {param_count:,}")
+
+            run_model(
+                config=config,
+                model=amd_model,
+                model_name='amd_trans_rev-1-2-3',
+                country=country,
+                dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
+                device=device,
+                loss_fn=amd_loss,
+                cpath=args.check_apath,
+                spath=args.save_apath,
+                year=year,
+            )
