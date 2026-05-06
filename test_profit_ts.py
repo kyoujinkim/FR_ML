@@ -41,10 +41,10 @@ def build_dataloaders(config, country, batch_size, data_apath='data', skip_col=N
     skip_col = skip_col  # factor columns — skip std-scale normalisation
     train_pct = [1.0, .0, .0]#[0.6, 0.2, 0.2]
 
-    #if year!=-1:
-    #    start_date = f'{year-1}-01-01'
-    #    end_date = f'{year}-12-31'
-    #    p = p.loc[start_date:end_date]
+    if year!=-1:
+        start_date = f'{year-1}-01-01'
+        end_date = f'{year}-12-31'
+        p = p.loc[start_date:end_date]
 
     ds = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='train', skip_col=skip_col)
     #ds_val = TS_dataset(p, fct=fct, size=size, train_pct=train_pct, std_scale=False, flag='valid', skip_col=skip_col)
