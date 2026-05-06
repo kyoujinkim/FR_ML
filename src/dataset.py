@@ -54,30 +54,28 @@ class TS_dataset(Dataset):
         brded_l = [train_num, valid_num, test_num]
         brdst = int(brdst_l[self.type])
         brded = int(brded_l[self.type])
-        price = price.iloc[brdst:brded]
-        print(price.index[0], price.index[-1], price.shape)
+        price_subset = price.iloc[brdst:brded].copy()
+        print(f"Range: {price_subset.index[0]} ~ {price_subset.index[-1]} | Shape: {price_subset.shape}")
 
         # make data pair
         data = []
         data_stamp = []
-        for i in tqdm(range(len(price.columns))):
-            p = price.iloc[:, i].dropna()
+        for i in tqdm(range(len(price_subset.columns))):
+            p = price_subset.iloc[:, i].dropna()
             if len(p) < self.seq_len + self.pred_len:
                 continue
             if fct:
-                d = []
+                d_list = []
                 for f in fct:
                     try:
-                        f_partial = f.loc[:p.index[-1], p.name].dropna().reindex(p.index, method='ffill')
+                        f_partial = f.loc[:p.index[-1], p.name].reindex(p.index).fillna(method='ffill').fillna(0)
                     except:
                         f_partial = pd.Series([0]*len(p), index=p.index, name=p.name)
-                    if len(f_partial)==0:
-                        f_partial = pd.Series([0]*len(p), index=p.index, name=p.name)
-                    d.append(f_partial)
-                d.append(p) # append target series to the end
-                d = pd.concat(d, axis=1).dropna()
+                    d_list.append(f_partial)
+                d_list.append(p) # append target series to the end
+                d = pd.concat(d_list, axis=1).dropna()
             else:
-                d = p
+                d = p.to_frame()
             if len(d) < self.seq_len + self.pred_len:
                 continue
 
@@ -89,7 +87,7 @@ class TS_dataset(Dataset):
                     'day' : d_timestamp.day,
                 }
             ).values
-            d = d.values
+            d = d.values.copy()
 
             for j in range(0, len(d) - self.seq_len - self.pred_len + 1, self.pred_len):
                 s_begin = j
@@ -97,8 +95,8 @@ class TS_dataset(Dataset):
                 r_begin = s_end - self.label_len
                 r_end = s_end + self.pred_len
 
-                x_base = d[s_begin: s_end]
-                y_base = d[r_begin: r_end]
+                x_base = d[s_begin: s_end].copy()
+                y_base = d[r_begin: r_end].copy()
 
                 if port_weight is not None:
                     try:
@@ -112,16 +110,17 @@ class TS_dataset(Dataset):
                         continue
 
                 # normalize target data first
-                base = d[s_end - 1].copy()
+                base = x_base[-1, - 1].copy()
                 x_norm = x_base / base
                 y_norm = y_base / base
-                x_base[:, -1] = x_norm[:, -1]  # last column should be normalized
-                y_base[:, -1] = y_norm[:, -1]  # last column should be normalized
 
                 # normalize data
                 if std_scale:
                     x = self.scaler.fit_transform(x_base)
                     y = self.scaler.transform(y_base)
+
+                    x_base[:, -1] = x_norm[:, -1]  # last column should be normalized
+                    y_base[:, -1] = y_norm[:, -1]
                 else:
                     x = x_norm.copy()
                     y = y_norm.copy()
