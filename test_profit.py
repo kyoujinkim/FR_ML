@@ -90,16 +90,12 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--country',    default='korea', help='data sub-folder name')
     p.add_argument('--config',     default='./config.ini')
-    p.add_argument('--compare',    action='store_true',
-                   help='also train/test PatchTST and iTransformer baselines')
     p.add_argument('--test-only',  action='store_true',
                    help='skip training; load existing checkpoints')
-    p.add_argument('--loss',       default='l1', choices=['l1', 'mse'],
-                   help='loss function for AMD-Trans')
     p.add_argument('--data_apath',   default='./data', help='absolute path to config file (overrides --config)')
     p.add_argument('--check_apath',  default='./checkpoints', help='absolute path to checkpoints (overrides default)')
     p.add_argument('--save_apath',   default='./logs', help='absolute path to logs (overrides default)')
-    p.add_argument('--skip_col',  nargs='*', type=int, default=[0, 2, 3, 4],)
+    p.add_argument('--skip_col',  nargs='*', type=int, default=[0, 1, 2, 3, 4],)
     return p.parse_args()
 
 
@@ -111,33 +107,32 @@ if __name__ == '__main__':
 
     torch.manual_seed(config.random_seed)
 
-    dl_trn, dl_val, dl_tst = build_dataloaders(config, args.country, config.batch_size, args.data_apath, args.skip_col)
+    for country in ['korea', 'us', 'japan', 'europe']:
 
-    # ------------------------------------------------------------------
-    # Loss function for AMD-Trans
-    # ------------------------------------------------------------------
-    if args.loss == 'l1':
+        dl_trn, dl_val, dl_tst = build_dataloaders(config, country, config.batch_size, args.data_apath, args.skip_col)
+
+        # ------------------------------------------------------------------
+        # Loss function for AMD-Trans
+        # ------------------------------------------------------------------
         amd_loss = nn.L1Loss()
-    else:
-        amd_loss = nn.MSELoss()
 
-    # ------------------------------------------------------------------
-    # AMD-Trans
-    # ------------------------------------------------------------------
-    profit_model = ProfitModel(config).to(device).float()
-    param_count = sum(p.numel() for p in profit_model.parameters() if p.requires_grad)
-    print(f"\nAMD-Trans parameters: {param_count:,}")
+        # ------------------------------------------------------------------
+        # AMD-Trans
+        # ------------------------------------------------------------------
+        profit_model = ProfitModel(config).to(device).float()
+        param_count = sum(p.numel() for p in profit_model.parameters() if p.requires_grad)
+        print(f"\nAMD-Trans parameters: {param_count:,}")
 
-    run_model(
-        config=config,
-        model=profit_model,
-        model_name='profit',
-        country=args.country,
-        dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
-        device=device,
-        loss_fn=amd_loss,
-        epochs=config.train_epochs,
-        test_only=args.test_only,
-        cpath=args.check_apath,
-        spath=args.save_apath,
-    )
+        run_model(
+            config=config,
+            model=profit_model,
+            model_name='profit',
+            country=country,
+            dl_trn=dl_trn, dl_val=dl_val, dl_tst=dl_tst,
+            device=device,
+            loss_fn=amd_loss,
+            epochs=config.train_epochs,
+            test_only=args.test_only,
+            cpath=args.check_apath,
+            spath=args.save_apath,
+        )
