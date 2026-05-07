@@ -64,6 +64,11 @@ def run_model(config, model, model_name, country, dl_trn, dl_val, dl_tst,
     checkpath = f'{cpath}/{model_name}_{country}'
     save_path = spath
     os.makedirs(save_path, exist_ok=True)
+    if os.path.exists(checkpath):
+        print(f"Checkpoint found for {model_name} at {checkpath}")
+        return True
+    else:
+        print(f"No checkpoint found for {model_name} at {checkpath}. Will train from scratch.")
 
     opt = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     learner = LongTermLearner(config, model, dl_trn, dl_val, dl_tst, opt, loss_fn, device)
@@ -87,6 +92,8 @@ def run_model(config, model, model_name, country, dl_trn, dl_val, dl_tst,
         checkpath=checkpath,
         save_path=save_path,
     )
+
+    return True
 
 # ---------------------------------------------------------------------------
 # Main
@@ -123,7 +130,7 @@ if __name__ == '__main__':
         dl_trn, dl_val, dl_tst = build_dataloaders(config, country, config.batch_size, args.data_apath, args.skip_col)
 
         # ------------------------------------------------------------------
-        # Loss function for AMD-Trans
+        # Loss function for PROFIT
         # ------------------------------------------------------------------
         if args.loss == 'l1':
             amd_loss = nn.L1Loss()
@@ -131,7 +138,7 @@ if __name__ == '__main__':
             amd_loss = nn.MSELoss()
 
         # ------------------------------------------------------------------
-        # AMD-Trans
+        # PROFIT
         # ------------------------------------------------------------------
         if not args.only_compare:
             for structure in ['rev-1-2-3', '1', '1-2', '1-3', '1-2-3', 'rev-1', 'rev-1-2', 'rev-1-3']:
