@@ -115,7 +115,7 @@ if __name__ == '__main__':
     for country in ['korea', 'us', 'japan', 'europe']:
         total_result = []
 
-        for year in range(2019,2026,1):
+        for year in [-1]:
             for sector in ['10', '15', '20', '25', '30', '35', '40', '45', '50', '55', '60']:
                 print(f"\n{'='*60}")
                 print(f"  Year: {year}  ")
