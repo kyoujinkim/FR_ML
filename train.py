@@ -170,9 +170,13 @@ class LongTermLearner():
         f.write(result_text + "\n")
         f.close()'''
 
-        pred_df = pd.DataFrame(np.vstack(pred),
-                               columns=['Value', 'Size', 'Momentum', 'Investment', 'Profitability',
-                                        'Price'])
+        if len(pred)>0:
+            pred_df = pd.DataFrame(np.vstack(pred),
+                                   columns=['Value', 'Size', 'Momentum', 'Investment', 'Profitability',
+                                            'Price'])
+        else:
+            pred_df = pd.DataFrame(columns=['Value', 'Size', 'Momentum', 'Investment', 'Profitability',
+                                            'Price'])
 
         #pred_df_g = pred_df.groupby(['Month', 'Day']).mean()
         pred_df['year'] = year
