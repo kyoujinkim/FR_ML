@@ -1,3 +1,4 @@
+import numpy as np
 import torch.nn as nn
 from src.layers.Transformer_EncDec import Encoder, EncoderLayer
 from src.layers.SelfAttention_Family import FullAttention, AttentionLayer
@@ -91,7 +92,7 @@ class Model(nn.Module):
         self.cross_attn = AttentionLayer(
             FullAttention(False, configs.factor,
                           attention_dropout=configs.dropout,
-                          output_attention=False),
+                          output_attention=True),
             configs.d_model, configs.n_heads
         )
         self.cross_norm = nn.LayerNorm(configs.d_model)
@@ -106,7 +107,7 @@ class Model(nn.Module):
                     AttentionLayer(
                         FullAttention(False, configs.factor,
                                       attention_dropout=configs.dropout,
-                                      output_attention=False),
+                                      output_attention=True),
                         configs.d_model, configs.n_heads),
                     configs.d_model, configs.d_ff,
                     dropout=configs.dropout, activation=configs.activation
@@ -123,6 +124,57 @@ class Model(nn.Module):
                                 head_dropout=configs.dropout)
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
+        # for attention visualization and ablation studies; not used in main experiments
+        B, T, N = x_enc.shape
+
+        # Stage 0: RevIN normalization
+        x_enc = self.revin(x_enc, 'norm')
+
+        # Stage 1: Temporal patch attention (channel-independent)
+        # [B, T, N] -> [B, N, T] -> patch_embedding -> [B*N, patch_num, d_model]
+        enc_out, n_vars = self.patch_embedding(x_enc.permute(0, 2, 1))
+        enc_out, _ = self.temporal_encoder(enc_out)  # [B*N, patch_num, d_model]
+
+        # Stage 2: Cross-attention with global temporal context
+        # x_mark: [B, T, 2] -> [B, T, d_model] -> [B*N, T, d_model]
+        global_ctx = self.global_proj(x_mark_enc.float()) # [B, T, d_model]
+        global_ctx = (global_ctx
+                      .unsqueeze(1)
+                      .expand(-1, n_vars, -1, -1)
+                      .reshape(B * n_vars, T, -1))                  # [B*N, T, d_model]
+
+        cross_out, _ = self.cross_attn(enc_out, global_ctx, global_ctx, attn_mask=None)
+        enc_out = self.cross_norm(enc_out + self.cross_dropout(cross_out))
+
+        # Stage 3: Variate-wise attention
+        # Reshape: [B*N, patch_num, d_model] -> [B, N, patch_num, d_model]
+        P = enc_out.shape[-2]
+        enc_out = enc_out.reshape(B, n_vars, P, enc_out.shape[-1])
+
+        # Per-variate summary token (mean over patches): [B, N, d_model]
+        variate_tokens = enc_out.mean(dim=2)
+        variate_out, _ = self.variate_encoder(variate_tokens)       # [B, N, d_model]
+
+        arr = _[-1].detach().cpu().numpy()
+        pooled_arr = np.mean(arr, axis=(1))
+        #P = pooled_arr.shape[-2]
+        #pooled_arr_out = pooled_arr.reshape(B, n_vars, P, pooled_arr.shape[-1])
+        pooled_arr_out = pooled_arr
+        #pooled_arr_out = np.mean(pooled_arr_out, axis=(2))
+        total_i = np.mean(pooled_arr_out, axis=(1))
+
+        '''total_i = []
+        for temp_n in range(len(pooled_arr_out)):
+            pooled_arr_out_i = pooled_arr_out[temp_n]
+            x_mark_enc_i = x_mark_enc.detach().cpu().numpy()[temp_n]
+            concat_i = np.hstack((x_mark_enc_i, pooled_arr_out_i.T))
+            total_i.extend(concat_i)
+
+        total_i = np.array(total_i)'''
+
+        return total_i
+
+    def forecast_main(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, T, N = x_enc.shape
 
         # Stage 0: RevIN normalization
@@ -235,8 +287,14 @@ class Model(nn.Module):
 
         return dec_out
 
-    def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
+    def forward_main(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         if self.task_name in ['long_term_forecast', 'short_term_forecast']:
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
             return dec_out[:, -self.pred_len:, :]  # [B, pred_len, N]
+        return None
+
+    def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
+        if self.task_name in ['long_term_forecast', 'short_term_forecast']:
+            dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
+            return dec_out
         return None

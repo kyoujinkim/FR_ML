@@ -149,16 +149,16 @@ class LongTermLearner():
                 f_dim = -1 if self.config.features == 'MS' else 0
                 output = self.model(x, x_mark, dec_inp, y_mark)
 
-                output = output[:, -self.config.pred_len:, :]
+                '''output = output[:, -self.config.pred_len:, :]
                 y = y[:, -self.config.pred_len:, :]
 
                 output = output.detach().cpu().numpy()[:, :, f_dim:]
-                y = y.detach().cpu().numpy()[:, :, f_dim:]
+                y = y.detach().cpu().numpy()[:, :, f_dim:]'''
 
                 pred.append(output)
                 true.append(y)
 
-        pred = np.concatenate(pred, axis=0)
+        '''pred = np.concatenate(pred, axis=0)
         true = np.concatenate(true, axis=0)
         pred = pred.reshape(-1, pred.shape[-2], pred.shape[-1])
         true = true.reshape(-1, true.shape[-2], true.shape[-1])
@@ -168,9 +168,15 @@ class LongTermLearner():
         print(result_text)
         f = open(f"{save_path}/result_long_term_forecast.txt", 'a')
         f.write(result_text + "\n")
-        f.close()
+        f.close()'''
 
-        return True
+        pred_df = pd.DataFrame(np.vstack(pred),
+                               columns=['Value', 'Size', 'Momentum', 'Investment', 'Profitability',
+                                        'Price'])
+
+        #pred_df_g = pred_df.groupby(['Month', 'Day']).mean()
+        pred_df['year'] = year
+        return pred_df
 
 def load_factors(path, factors, format='csv'):
     fct = []
