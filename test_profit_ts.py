@@ -46,6 +46,8 @@ def build_dataloaders(config, country, batch_size, data_apath='data', skip_col=N
         start_date = f'{year-1}-01-01'
         end_date = f'{year}-12-31'
         p = p.loc[start_date:end_date]
+    else:
+        p = p.loc['2018-01-01':]
 
     if sector!= -1:
         sector_csv = pd.read_csv(f'{data_apath}/sector.csv', index_col=0, dtype=str)
