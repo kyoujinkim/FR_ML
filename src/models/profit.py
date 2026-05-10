@@ -123,7 +123,7 @@ class Model(nn.Module):
         self.head = FlattenHead(configs.enc_in, head_nf, configs.pred_len,
                                 head_dropout=configs.dropout)
 
-    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
+    def forecast_attn(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         # for attention visualization and ablation studies; not used in main experiments
         B, T, N = x_enc.shape
 
@@ -174,7 +174,7 @@ class Model(nn.Module):
 
         return total_i
 
-    def forecast_main(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
+    def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         B, T, N = x_enc.shape
 
         # Stage 0: RevIN normalization
@@ -216,7 +216,7 @@ class Model(nn.Module):
         dec_out = self.revin(dec_out, 'denorm')
         return dec_out
 
-    def forecast_notused(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
+    def forecast_ablation(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         """
         select which stages to execute for ablation:
             - 'rev-1-2e-3': full model with all stages

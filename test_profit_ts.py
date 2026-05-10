@@ -70,7 +70,7 @@ def build_dataloaders(config, country, batch_size, data_apath='data', skip_col=N
 
 
 def run_model(config, model, model_name, country, dl_trn, dl_val, dl_tst,
-              device, loss_fn, cpath='checkpoints', spath='logs', year=-1):
+              device, loss_fn, cpath='checkpoints', spath='logs', year=-1, sector=-1):
     checkpath = f'{cpath}/{model_name}_{country}'
     save_path = spath
     os.makedirs(save_path, exist_ok=True)
@@ -85,6 +85,7 @@ def run_model(config, model, model_name, country, dl_trn, dl_val, dl_tst,
         checkpath=checkpath,
         save_path=save_path,
         year=year,
+        sector=sector,
     )
 
     return result
@@ -140,7 +141,5 @@ if __name__ == '__main__':
                     cpath=args.check_apath,
                     spath=args.save_apath,
                     year=year,
+                    sector=sector,
                 )
-                result['sector'] = sector
-                total_result.append(result)
-        pd.concat(total_result).to_csv(f'{args.save_apath}/profit_{country}_yearly_sector.csv', index=False)

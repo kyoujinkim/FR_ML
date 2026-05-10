@@ -119,7 +119,7 @@ class LongTermLearner():
 
         return self.model
 
-    def test(self, model_name, country, checkpath:str='', save_path:str='', year=-1):
+    def test(self, model_name, country, checkpath:str='', save_path:str='', year=-1, sector=-1):
         if not os.path.exists(f'{checkpath}'):
             os.makedirs(f'{checkpath}')
         if not os.path.exists(f'{save_path}'):
@@ -149,38 +149,28 @@ class LongTermLearner():
                 f_dim = -1 if self.config.features == 'MS' else 0
                 output = self.model(x, x_mark, dec_inp, y_mark)
 
-                '''output = output[:, -self.config.pred_len:, :]
+                output = output[:, -self.config.pred_len:, :]
                 y = y[:, -self.config.pred_len:, :]
 
                 output = output.detach().cpu().numpy()[:, :, f_dim:]
-                y = y.detach().cpu().numpy()[:, :, f_dim:]'''
+                y = y.detach().cpu().numpy()[:, :, f_dim:]
 
                 pred.append(output)
                 true.append(y)
 
-        '''pred = np.concatenate(pred, axis=0)
+        pred = np.concatenate(pred, axis=0)
         true = np.concatenate(true, axis=0)
         pred = pred.reshape(-1, pred.shape[-2], pred.shape[-1])
         true = true.reshape(-1, true.shape[-2], true.shape[-1])
 
         mae, mse, rmse, mape, mspe, dirmse = metric(pred, true)
-        result_text = f'setting {year}: {model_name} - {country}, mae: {mae:.4f}, mse: {mse:.4f}, dir_mse: {dirmse:.5f}, rmse: {rmse:.4f}, mape: {mape:.4f}, mspe: {mspe:.4f}'
+        result_text = f'setting {year} {sector}: {model_name} - {country}, mae: {mae:.4f}, mse: {mse:.4f}, dir_mse: {dirmse:.5f}, rmse: {rmse:.4f}, mape: {mape:.4f}, mspe: {mspe:.4f}'
         print(result_text)
         f = open(f"{save_path}/result_long_term_forecast.txt", 'a')
         f.write(result_text + "\n")
-        f.close()'''
+        f.close()
 
-        if len(pred)>0:
-            pred_df = pd.DataFrame(np.vstack(pred),
-                                   columns=['Value', 'Size', 'Momentum', 'Investment', 'Profitability',
-                                            'Price'])
-        else:
-            pred_df = pd.DataFrame(columns=['Value', 'Size', 'Momentum', 'Investment', 'Profitability',
-                                            'Price'])
-
-        #pred_df_g = pred_df.groupby(['Month', 'Day']).mean()
-        pred_df['year'] = year
-        return pred_df
+        return True
 
 def load_factors(path, factors, format='csv'):
     fct = []
