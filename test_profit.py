@@ -88,9 +88,9 @@ def run_model(config, model, model_name, country, dl_trn, dl_val, dl_tst,
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument('--country',    default='korea', help='data sub-folder name')
+    p.add_argument('--country',    nargs='*', default='korea', help='data sub-folder name')
     p.add_argument('--config',     default='./config.ini')
-    p.add_argument('--test-only',  default=True, action='store_true',
+    p.add_argument('--test-only',  default=False, action='store_true',
                    help='skip training; load existing checkpoints')
     p.add_argument('--data_apath',   default='./data', help='absolute path to config file (overrides --config)')
     p.add_argument('--check_apath',  default='./checkpoints', help='absolute path to checkpoints (overrides default)')
@@ -107,7 +107,7 @@ if __name__ == '__main__':
 
     torch.manual_seed(config.random_seed)
 
-    for country in ['europe']:#['korea', 'us', 'japan', 'europe']
+    for country in config.country
 
         dl_trn, dl_val, dl_tst = build_dataloaders(config, country, config.batch_size, args.data_apath, args.skip_col)
 
