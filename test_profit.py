@@ -107,7 +107,7 @@ if __name__ == '__main__':
 
     torch.manual_seed(config.random_seed)
 
-    for country in config.country
+    for country in config.country:
 
         dl_trn, dl_val, dl_tst = build_dataloaders(config, country, config.batch_size, args.data_apath, args.skip_col)
 
